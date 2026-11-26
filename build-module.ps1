@@ -587,6 +587,7 @@ function Apply-Patrol([string]$modDir) {
     # 参数（params.md 巡逻队参数表）
     $md = Read-TextNoBom (Join-Path $PSScriptRoot 'params.md')
     $cost = 5000; $garrisonRecruit = 50; $refill = 20; $threshold = 20; $slotCenter = 238; $wage = 10; $wageHour = 168; $vrCost = 10; $vrDebug = 0
+    $patrolRadius = 5; $pursueDist = 5400
     foreach ($line in ($md -split "\r?\n")) {
         if ($line -match '^\|\s*巡逻队招募花费\s*\|\s*(\d+)\s*\|') { $cost = [int]$Matches[1] }
         if ($line -match '^\|\s*巡逻队招募抽兵数\s*\|\s*(\d+)\s*\|') { $garrisonRecruit = [int]$Matches[1] }
@@ -595,6 +596,8 @@ function Apply-Patrol([string]$modDir) {
         if ($line -match '^\|\s*巡逻队中心槽位\s*\|\s*(\d+)\s*\|') { $slotCenter = [int]$Matches[1] }
         if ($line -match '^\|\s*巡逻队每人每周工资\s*\|\s*(\d+)\s*\|') { $wage = [int]$Matches[1] }
         if ($line -match '^\|\s*巡逻队工资触发器小时\s*\|\s*(\d+)\s*\|') { $wageHour = [int]$Matches[1] }
+        if ($line -match '^\|\s*巡逻队巡逻半径\s*\|\s*(\d+)\s*\|') { $patrolRadius = [int]$Matches[1] }
+        if ($line -match '^\|\s*巡逻队追击距离\s*\|\s*(\d+)\s*\|') { $pursueDist = [int]$Matches[1] }
         if ($line -match '^\|\s*村庄征募每名费用\s*\|\s*(\d+)\s*\|') { $vrCost = [int]$Matches[1] }
         if ($line -match '^\|\s*村庄征募调试\s*\|\s*(\d+)\s*\|') { $vrDebug = [int]$Matches[1] }
     }
@@ -738,6 +741,8 @@ function Apply-Patrol([string]$modDir) {
         '{{SLOT_CENTER_PATROL}}' = [string]$slotCenter
         '{{RECRUIT_COST}}' = [string]$cost
         '{{WAGE_PER_MAN}}' = [string]$wage
+        '{{PATROL_RADIUS_KM}}' = [string]$patrolRadius
+        '{{PURSUE_DIST_M}}' = [string]$pursueDist
         '{{RECRUIT_GARRISON}}' = [string]$garrisonRecruit
         '{{REFILL_GARRISON}}' = [string]$refill
         '{{PRISONER_THRESHOLD}}' = [string]$threshold

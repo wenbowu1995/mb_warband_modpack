@@ -131,7 +131,7 @@ try_begin
     party_set_name :l2 s3
     party_set_ai_behavior :l2 3
     party_set_ai_object :l2 :l0
-    party_set_ai_patrol_radius :l2 10
+    party_set_ai_patrol_radius :l2 {{PATROL_RADIUS_KM}}
     party_set_ai_initiative :l2 100
     party_set_flags :l2 65536 0
     party_set_slot :l2 4 4
@@ -262,7 +262,7 @@ try_for_range :l0 {{CENTERS_BEGIN}} {{CENTERS_END}}
       try_end
       party_set_ai_behavior :l1 3
       party_set_ai_object :l1 :l0
-      party_set_ai_patrol_radius :l1 10
+      party_set_ai_patrol_radius :l1 {{PATROL_RADIUS_KM}}
       party_set_ai_initiative :l1 100
       party_set_flags :l1 65536 0
     try_end
@@ -287,7 +287,7 @@ try_for_range :l0 {{CENTERS_BEGIN}} {{CENTERS_END}}
         party_get_position pos1 :l14
         party_get_position pos2 :l1
         get_distance_between_positions_in_meters :l16 pos1 pos2
-        lt :l16 30000
+        lt :l16 {{PURSUE_DIST_M}}
         call_script {{SCRIPT_CALC_STRENGTH}} :l1 0
         assign :l17 reg0
         call_script {{SCRIPT_CALC_STRENGTH}} :l14 0
@@ -307,7 +307,7 @@ try_for_range :l0 {{CENTERS_BEGIN}} {{CENTERS_END}}
           eq :l11 15
           party_set_ai_behavior :l1 3
           party_set_ai_object :l1 :l0
-          party_set_ai_patrol_radius :l1 10
+          party_set_ai_patrol_radius :l1 {{PATROL_RADIUS_KM}}
           party_set_slot :l1 4 4
         try_end
       try_end
@@ -336,7 +336,7 @@ try_for_range :l0 {{CENTERS_BEGIN}} {{CENTERS_END}}
         party_detach :l1
         party_set_ai_behavior :l1 3
         party_set_ai_object :l1 :l0
-        party_set_ai_patrol_radius :l1 10
+        party_set_ai_patrol_radius :l1 {{PATROL_RADIUS_KM}}
         party_set_slot :l1 4 4
       else_try
         party_set_ai_behavior :l1 1
