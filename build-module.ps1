@@ -2137,8 +2137,8 @@ function Apply-LearnSkill([string]$modDir) {
     Reorder-AppendStrings $modDir
     Write-ModpackLog '[learnskill] 城镇 → 训练 → 学习技能：强制等待 8 小时（7 小时后提示），每次 +1 级'
 }
-# 追加区字符串重排：WSE2 不加载 strings.txt 追加区最后 2 条（原生数 + 29 之后），
-# 把不影响显示的 2 条（loan debug / detail 与君主关系）挪到最后，其余字符串前移并重算所有引用。
+# 追加区字符串重排：WSE2 不加载 strings.txt 追加区末尾的字符串（原生数 + 29 之后），
+# 把「显示用」的串（detail 关系后缀 / 与君主关系）前移，其余字符串后移并重算所有引用。
 function Reorder-AppendStrings([string]$modDir) {
     $sPath = Join-Path $modDir 'strings.txt'
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -2151,10 +2151,8 @@ function Reorder-AppendStrings([string]$modDir) {
     if ($start -lt 0) { return }
     $append = @($rows[$start..($rows.Count - 1)])
     # WSE2 加载不了追加区的末尾/后段字符串：把「显示用」的字符串前置，把纯调试串挪到最后
-    $moveNames = @('str_wb_loan_debug')
-    $frontNames = @('str_detail_relation_suffix', 'str_detail_king_relation',
-        'str_wb_learn_gain', 'str_wb_learn_nope',
-        'str_wb_claim_set', 'str_wb_claim_retake', 'str_wb_claim_peace')
+    $moveNames = @()
+    $frontNames = @('str_detail_relation_suffix', 'str_detail_king_relation')
     $front = @(); $keep = @(); $moved = @()
     foreach ($r in $append) {
         $nm = ($r -split ' ')[0]
@@ -3016,19 +3014,6 @@ function Apply-Claim([string]$modDir) {
     $r12 = '1224979098644774912'; $r13 = '1224979098644774913'; $r14 = '1224979098644774914'
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
     $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
-    # 消息合并字符串（中心名单累积）
-    $sPath = Join-Path $modDir 'strings.txt'
-    $sLines = @([IO.File]::ReadAllText($sPath, $enc) -split "\r?\n")
-    while ($sLines.Count -ge 1 -and $sLines[$sLines.Count - 1] -eq '') { $sLines = @($sLines[0..($sLines.Count - 2)]) }
-    $nStr = 0
-    if (-not [int]::TryParse($sLines[1].Trim(), [ref]$nStr)) { throw 'strings.txt 第 2 行不是数量' }
-    if (-not (($sLines -join "`n") -match 'str_wb_msg_join')) {
-        $sBody = @($sLines)
-        $sBody[1] = [string]($nStr + 1)
-        [IO.File]::WriteAllText($sPath, ((($sBody + @('str_wb_msg_join {s60} {s55}')) -join "`r`n") + "`r`n"), $enc)
-    }
-    $msgJoinId = [string](216172782113783808 + $nStr)
-    $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
     $msgCountVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_count'])
 
     $TAG = [int64]936748722493063168   # tag_script(13) << 56
@@ -3151,16 +3136,16 @@ function Apply-Claim([string]$modDir) {
         '2204','2',$r15,$r14,
         '4','0',
         '31','2',$r15,$r12,
-        '521','3',$r16,$r14,'201',
+        '521','3',$r16,$r14,$slClaimFaction,
         '31','2',$r16,$r13,
-        '501','3',$r14,'200','0',
-        '501','3',$r14,'201','0',
+        '501','3',$r14,$slClaimLord,'0',
+        '501','3',$r14,$slClaimFaction,'0',
         '5','0',
         '31','2',$r15,$r13,
-        '521','3',$r16,$r14,'201',
+        '521','3',$r16,$r14,$slClaimFaction,
         '31','2',$r16,$r12,
-        '501','3',$r14,'200','0',
-        '501','3',$r14,'201','0',
+        '501','3',$r14,$slClaimLord,'0',
+        '501','3',$r14,$slClaimFaction,'0',
         '3','0',
         '3','0'
     )
@@ -3168,7 +3153,7 @@ function Apply-Claim([string]$modDir) {
     if ($dbg -eq 1) {
         $ps = $peace -join ' '
         $ps = $ps.Replace("23 2 $r12 1 23 2 $r13 2", "23 2 $r12 1 23 2 $r13 2 2133 2 $r17 0")
-        $ps = $ps.Replace("501 3 $r14 200 0 501 3 $r14 201 0", "501 3 $r14 200 0 501 3 $r14 201 0 2105 2 $r17 1")
+        $ps = $ps.Replace("501 3 $r14 $slClaimLord 0 501 3 $r14 $slClaimFaction 0", "501 3 $r14 $slClaimLord 0 501 3 $r14 $slClaimFaction 0 2105 2 $r17 1")
         $ps = $ps + " 4 0 32 2 $r17 0 2133 2 $msgTypeVar 3 2133 2 $msgCountVar $r17 3 0"
         $peace = $ps -split ' '
     }
@@ -3200,43 +3185,12 @@ function Apply-Claim([string]$modDir) {
         '3','0'
     )
 
-    # 把旧版误用的 200-203 统一替换成新槽 234-237（mark/settle_one/settle/peace）
-    $slotMap = @{ '200' = $slClaimLord; '201' = $slClaimFaction; '202' = $slPending; '203' = $slPendingLord }
-    foreach ($arrName in @('mark', 'settleOne', 'settle', 'peace')) {
-        $arr = Get-Variable -Name $arrName -ValueOnly
-        $newArr = @()
-        foreach ($tok in @($arr)) {
-            $key = [string]$tok
-            if ($slotMap.ContainsKey($key)) { $newArr += $slotMap[$key] } else { $newArr += $tok }
-        }
-        Set-Variable -Name $arrName -Value $newArr
-    }
-
-    # 消息入队脚本（队列存 p_temp_party 槽 600+；type/arg1/arg2 各 16 槽）
-    $msgPushScript = @(
-        '21','1',$r12,
-        '22','1',$r13,
-        '23','1',$r14,
-        '521','3',$r15,'648518346341351425','600',
-        '4','0','30','2',$r15,'16',
-        '2122','3',$r16,$r15,'601',
-        '501','3','648518346341351425',$r16,$r12,
-        '2122','3',$r16,$r15,'621',
-        '501','3','648518346341351425',$r16,$r13,
-        '2122','3',$r16,$r15,'641',
-        '501','3','648518346341351425',$r16,$r14,
-        '2105','2',$r15,'1',
-        '501','3','648518346341351425','600',$r15,
-        '3','0'
-    )
-
     $scripts = @(
         @('wb_claim_mark', $mark),
         @('wb_claim_settle_one', $settleOne),
         @('wb_claim_settle', $settle),
         @('wb_claim_peace', $peace),
-        @('wb_claim_purge', $purge),
-        @('wb_claim_msg_push', $msgPushScript)
+        @('wb_claim_purge', $purge)
     )
     # 追加脚本：名字行 + 体行（体行首 token = 语句数）
     while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = @($scLines[0..($scLines.Count - 2)]) }
@@ -3342,35 +3296,6 @@ function Apply-Claim([string]$modDir) {
     $tLines[$hit] = $tLines[$hit].Replace('48.000000  56 ', '48.000000  57 ')
     [IO.File]::WriteAllText($tPath, ((($tLines) -join "`r`n") + "`r`n"), $enc)
     Write-ModpackLog '[claim] 钩子已挂：中心易手（mark）、归属落定（settle）、停战（peace）、48h 清理（purge）'
-
-    # 菜单选项：castle_taken 加「归还给原领主」——当前引擎下 menus.txt 选项行解析不兼容（加载 EOF 崩溃），已回滚
-
-    # 最小验证：新增「攻下城后」对话状态（验证 conversation 插状态可行）
-    $convPath = Join-Path $modDir 'conversation.txt'
-    $convLines = [IO.File]::ReadAllText($convPath, $enc) -split "\r?\n"
-    $cCount = 0
-    if (-not [int]::TryParse($convLines[1].Trim(), [ref]$cCount)) { throw 'conversation.txt 第 2 行不是数量' }
-    if (-not (($convLines -join "`n") -match 'claim_take_notice')) {
-        $insertAt = -1
-        $baseId = -1
-        for ($i = 0; $i -lt $convLines.Count; $i++) {
-            if ($convLines[$i] -match '^dlga_event_triggered:award_fief_to_vassal 4095 (\d+) ') { $insertAt = $i; $baseId = [int]$Matches[1]; break }
-        }
-        if ($insertAt -lt 0) { throw 'conversation.txt 里找不到 dlga_event_triggered:award_fief_to_vassal' }
-        if ($baseId -lt 2) { throw 'conversation.txt state 编号异常' }
-        # 与贷款/祈祷对话一致：新状态用大编号（9020/9021），不重映射其它行（重映射会破坏内置状态）
-        $newState = 9020
-        $line1 = 'dlga_event_triggered:claim_take_notice 4095 ' + $newState + '  0  Test_claim_take_notice  9021  0 NO_VOICEOVER'
-        $line2 = 'dlga_claim_take_notice:close_window 4095 ' + ($newState + 1) + '  0  Continue...  6  0 NO_VOICEOVER'
-        $convLines = @($convLines[0..($insertAt - 1)]) + @($line1, $line2) + @($convLines[$insertAt..($convLines.Count - 1)])
-        $convLines[1] = [string]($cCount + 2)
-        while ($convLines.Count -ge 1 -and $convLines[$convLines.Count - 1] -eq '') { $convLines = @($convLines[0..($convLines.Count - 2)]) }
-        [IO.File]::WriteAllText($convPath, ((($convLines) -join "`r`n") + "`r`n"), $enc)
-        Write-ModpackLog '[claim] 新增测试对话 dlga_event_triggered:claim_take_notice（最小验证）'
-    } else {
-        Write-ModpackLog '[claim] 测试对话已存在，跳过'
-    }
-
 
 }
 
