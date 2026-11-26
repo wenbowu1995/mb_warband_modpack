@@ -54,11 +54,10 @@ local function flush_claim_queue()
     local t = game.gvar.g_wb_claim_q_type
     local faction = game.sreg[62] or ""
     local center = game.sreg[55] or ""
-    local left = game.gvar.g_wb_claim_q_n or 0
     if t == 1 then
-        show(faction .. " 攻占了 " .. center .. "，旧主的宣称已被记下。" .. "〔队列剩 " .. tostring(left) .. "〕", 0xFF6600)
+        show(faction .. " 攻占了 " .. center .. "，旧主的宣称已被记下。", 0xFF6600)
     elseif t == 2 then
-        show(faction .. " 收复失地 " .. center .. "，领地已归还原主。" .. "〔队列剩 " .. tostring(left) .. "〕", 0x00CC00)
+        show(faction .. " 收复失地 " .. center .. "，领地已归还原主。", 0x00CC00)
     end
 end
 
