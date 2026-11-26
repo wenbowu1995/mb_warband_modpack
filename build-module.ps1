@@ -2641,7 +2641,7 @@ function Apply-MsgVars([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    $names = @('g_wb_msg_type', 'g_wb_msg_count', 'g_wb_msg_arg1', 'g_wb_msg_arg2', 'g_wb_claim_pending_center')
+    $names = @('g_wb_msg_type', 'g_wb_msg_count', 'g_wb_msg_arg1', 'g_wb_msg_arg2')
     foreach ($vn in $names) {
         $found = -1
         for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq $vn) { $found = $i; break } }
@@ -2994,7 +2994,7 @@ function Apply-Claim([string]$modDir) {
     # 消息变量由 Apply-MsgVars 统一初始化，这里只取 tag
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    $msgVars = @('g_wb_msg_type', 'g_wb_msg_count', 'g_wb_claim_pending_center')
+    $msgVars = @('g_wb_msg_type', 'g_wb_msg_count')
     $msgIdx = @{}
     foreach ($vn in $msgVars) {
         $found = -1
