@@ -213,6 +213,26 @@ powershell -ExecutionPolicy Bypass -File build-module.ps1 `
 - 目标已存在时加 `-Force` 覆盖
 - 功能名（`-Features`，内部调试/兼容旧用法）：`equip` / `garrison` / `lairlink` / `lootchest` / `detail` / `itemvalue` / `fief` / `armyreward` / `mentor` / `learnskill` / `loan` / `skills` / `fiefenvy` / `reconcile` / `dispute` / `persuade` / `luck` / `defeat` / `claim` / `lua` / `patrol` / `factionjoin` / `swap` / `taxexempt` / `nofiefgood` / `drill`
 
+## Git 维护
+
+生成器目录本身是 Git 仓库，远程：<https://github.com/wenbowu1995/mb_warband_modpack>
+
+- 本地路径：`scripts\骑砍Mod\modpack\.git`（仓库根 = 本目录，不是工作区根）
+- 分支：`main`，已跟踪 `origin/main`
+- 忽略：`debug.log`、`*.log`、`*.new`、`tmp/`（见 `.gitignore`）
+- 换行：本仓库设了 `core.autocrlf false`，按工作区原样存储（`.ps1` 保持 CRLF，`.md`/`.psd1` 保持 LF）；换机器 clone 后也保持这个设置
+- 提交约定：改完生成器、跑过 `check-module.ps1` 且生成过一次模块后，再提交推送
+
+```powershell
+cd scripts\骑砍Mod\modpack
+git status
+git add -A
+git commit -m "功能：一句话说明"
+git push
+```
+
+推送要走代理时先设 `$env:HTTPS_PROXY='http://127.0.0.1:7897'`（本机代理端口）；DSH 沙箱下联网需要提权。
+
 ## 文件
 
 ```
