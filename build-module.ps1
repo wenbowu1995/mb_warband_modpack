@@ -2994,6 +2994,11 @@ function Apply-Claim([string]$modDir) {
     foreach ($ln in ($md -split "\r?\n")) {
         if ($ln -match '^\|\s*宣称调试提示\s*\|\s*(\d+)\s*\|') { $dbg = [int]$Matches[1] }
     }
+    # 参数：宣称队列调试（1 = 每次攻占重复入队 3 条，验证队列逐条显示）
+    $qdbg = 1
+    foreach ($ln in ($md -split "\r?\n")) {
+        if ($ln -match '^\|\s*宣称队列调试\s*\|\s*(\d+)\s*\|') { $qdbg = [int]$Matches[1] }
+    }
     # 消息变量由 Apply-MsgVars 统一初始化，这里只取 tag
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
@@ -3097,6 +3102,10 @@ function Apply-Claim([string]$modDir) {
     if ($dbg -eq 1) {
         # 攻占消息入队（type 1），由 Lua 每帧逐条取出显示，避免同帧多条互相覆盖
         $mark += @('1','4',$qPushTag,'1',$r12,$r14)
+        if ($qdbg -eq 1) {
+            # 调试：同一条消息再多入队 2 次（共 3 条），攻城一次就能看到队列逐条打印
+            $mark += @('1','4',$qPushTag,'1',$r12,$r14,'1','4',$qPushTag,'1',$r12,$r14)
+        }
     }
     $mark += @('501','3',$r12,$slPending,'0','3','0','3','0')
 
