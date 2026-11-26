@@ -40,6 +40,27 @@ local function show(msg, color)
     end
 end
 
+-- 宣称消息队列：Native 侧 wb_claim_q_push 入队（type/中心/势力，最多 4 条），
+-- 这里每帧取一条：先调 wb_claim_q_pop 让它把名字写进 s55/s62，再显示。
+local function flush_claim_queue()
+    if not (game.script and game.script.wb_claim_q_pop) then
+        return
+    end
+    local n = game.gvar.g_wb_claim_q_n
+    if n == nil or n <= 0 then
+        return
+    end
+    game.call_script(game.script.wb_claim_q_pop)
+    local t = game.gvar.g_wb_claim_q_type
+    local faction = game.sreg[62] or ""
+    local center = game.sreg[55] or ""
+    if t == 1 then
+        show(faction .. " 攻占了 " .. center .. "，旧主的宣称已被记下。", 0xFF6600)
+    elseif t == 2 then
+        show(faction .. " 收复失地 " .. center .. "，领地已归还原主。", 0x00CC00)
+    end
+end
+
 local function flush_message()
     local t = game.gvar.g_wb_msg_type
     if t == nil or t == 0 then
@@ -53,13 +74,7 @@ local function flush_message()
     local king = game.sreg[63] or ""
     local center = game.sreg[55] or ""
 
-    if t == 1 then
-        show(faction .. " 攻占了 " .. center .. "，旧主的宣称已被记下。", 0xFF6600)
-        game.sreg[60] = ""
-    elseif t == 2 then
-        show(faction .. " 收复失地 " .. center .. "，领地已归还原主。", 0x00CC00)
-        game.sreg[60] = ""
-    elseif t == 3 then
+    if t == 3 then
         show("两国缔结停战之约，" .. game.gvar.g_wb_msg_count .. " 处领土宣称就此作废。", 0x00CCFF)
     elseif t == 4 then
         local sid = game.gvar.g_wb_msg_arg1
@@ -149,4 +164,5 @@ end
 game.OnWorldTrigger = function(date)
     check_reload()
     flush_message()
+    flush_claim_queue()
 end

@@ -3006,6 +3006,18 @@ function Apply-Claim([string]$modDir) {
         $msgIdx[$vn] = $found
     }
     $TAG_VAR = [int64]144115188075855872
+    # 宣称消息队列变量（type/center/faction 各 4 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
+    $qVarNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
+    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
+    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
+    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
+    foreach ($vn in $qVarNames) {
+        if (-not ($varList -contains $vn)) { $varList += $vn }
+    }
+    [IO.File]::WriteAllText($vPath, (($varList -join "`r`n") + "`r`n"), $enc)
+    $qIdx = @{}
+    for ($qi = 0; $qi -lt $varList.Count; $qi++) { $qIdx[$varList[$qi].Trim()] = $qi }
+    foreach ($vn in $qVarNames) { if (-not $qIdx.ContainsKey($vn)) { throw "variables.txt 里没有 $vn" } }
     # 原版 players_kingdom 变量（索引跟 Native 变量表走，别硬编码）
     $pkIdx = -1
     for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'players_kingdom') { $pkIdx = $i; break } }
@@ -3015,6 +3027,15 @@ function Apply-Claim([string]$modDir) {
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
     $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
     $msgCountVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_count'])
+    # 队列变量 tag
+    $qNVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_n'])
+    $qTypeVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_type'])
+    $qCVar = @{}; $qFVar = @{}; $qTVar = @{}
+    for ($qi = 1; $qi -le 4; $qi++) {
+        $qCVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_c$qi"])
+        $qFVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_f$qi"])
+        $qTVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_t$qi"])
+    }
 
     $TAG = [int64]936748722493063168   # tag_script(13) << 56
     # 取已存在脚本的 tag（give_center_to_lord 等）
@@ -3033,9 +3054,10 @@ function Apply-Claim([string]$modDir) {
     $markTag    = [string]($TAG + $n)
     $settleOneTag = [string]($TAG + ($n + 1))
     $settleTag  = [string]($TAG + ($n + 2))
-    $pushTag = [string]($TAG + ($n + 5))
     $peaceTag   = [string]($TAG + ($n + 3))
     $purgeTag   = [string]($TAG + ($n + 4))
+    $qPushTag   = [string]($TAG + ($n + 5))
+    $qPopTag    = [string]($TAG + ($n + 6))
 
     $r12 = '1224979098644774912'; $r13 = '1224979098644774913'; $r14 = '1224979098644774914'
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
@@ -3073,7 +3095,8 @@ function Apply-Claim([string]$modDir) {
         '501','3',$r12,$slClaimFaction,$r13
     )
     if ($dbg -eq 1) {
-        $mark += @('2133','2',$msgTypeVar,'1','2335','2','62',$r14,'2330','2','55',$r12)
+        # 攻占消息入队（type 1），由 Lua 每帧逐条取出显示，避免同帧多条互相覆盖
+        $mark += @('1','4',$qPushTag,'1',$r12,$r14)
     }
     $mark += @('501','3',$r12,$slPending,'0','3','0','3','0')
 
@@ -3112,7 +3135,7 @@ function Apply-Claim([string]$modDir) {
         '3','0',
         '1528','2','360287970189639680','72057594037927936',
         '3','0'
-    ) + $(if ($dbg -eq 1) { @('2133','2',$msgTypeVar,'2','2335','2','62',$r16,'2330','2','55',$r12) } else { @() }) + @(
+    ) + $(if ($dbg -eq 1) { @('1','4',$qPushTag,'2',$r12,$r16) } else { @() }) + @(
         '501','3',$r12,'234','0',
         '501','3',$r12,'235','0',
         '3','0',
@@ -3185,12 +3208,67 @@ function Apply-Claim([string]$modDir) {
         '3','0'
     )
 
+    # 6) 消息队列：入队（type, center, faction；最多 4 条，满了直接丢弃新消息——测试用）
+    $qPush = @(
+        '23','2',$r12,'1',
+        '23','2',$r13,'2',
+        '23','2',$r14,'3',
+        '2133','2',$r15,$qNVar,
+        '4','0','31','2',$r15,'0',
+        '2133','2',$qTVar[1],$r12,
+        '2133','2',$qCVar[1],$r13,
+        '2133','2',$qFVar[1],$r14,
+        '2133','2',$qNVar,'1',
+        '5','0','31','2',$r15,'1',
+        '2133','2',$qTVar[2],$r12,
+        '2133','2',$qCVar[2],$r13,
+        '2133','2',$qFVar[2],$r14,
+        '2133','2',$qNVar,'2',
+        '5','0','31','2',$r15,'2',
+        '2133','2',$qTVar[3],$r12,
+        '2133','2',$qCVar[3],$r13,
+        '2133','2',$qFVar[3],$r14,
+        '2133','2',$qNVar,'3',
+        '5','0','31','2',$r15,'3',
+        '2133','2',$qTVar[4],$r12,
+        '2133','2',$qCVar[4],$r13,
+        '2133','2',$qFVar[4],$r14,
+        '2133','2',$qNVar,'4',
+        '3','0'
+    )
+
+    # 7) 消息出队：把队首写进 s55（中心名）/ s62（势力名）+ 类型变量，供 Lua 读取显示
+    $qPop = @(
+        '2133','2',$r15,$qNVar,
+        '4','0',
+        '32','2',$r15,'0',
+        '2133','2',$qTypeVar,$qTVar[1],
+        '2330','2','55',$qCVar[1],
+        '2335','2','62',$qFVar[1],
+        '2133','2',$qTVar[1],$qTVar[2],
+        '2133','2',$qCVar[1],$qCVar[2],
+        '2133','2',$qFVar[1],$qFVar[2],
+        '2133','2',$qTVar[2],$qTVar[3],
+        '2133','2',$qCVar[2],$qCVar[3],
+        '2133','2',$qFVar[2],$qFVar[3],
+        '2133','2',$qTVar[3],$qTVar[4],
+        '2133','2',$qCVar[3],$qCVar[4],
+        '2133','2',$qFVar[3],$qFVar[4],
+        '2133','2',$qTVar[4],'0',
+        '2133','2',$qCVar[4],'0',
+        '2133','2',$qFVar[4],'0',
+        '2106','2',$qNVar,'1',
+        '3','0'
+    )
+
     $scripts = @(
         @('wb_claim_mark', $mark),
         @('wb_claim_settle_one', $settleOne),
         @('wb_claim_settle', $settle),
         @('wb_claim_peace', $peace),
-        @('wb_claim_purge', $purge)
+        @('wb_claim_purge', $purge),
+        @('wb_claim_q_push', $qPush),
+        @('wb_claim_q_pop', $qPop)
     )
     # 追加脚本：名字行 + 体行（体行首 token = 语句数）
     while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = @($scLines[0..($scLines.Count - 2)]) }
@@ -3211,7 +3289,7 @@ function Apply-Claim([string]$modDir) {
     $scLines[1] = [string]($n + $scripts.Count)
     $scLines = @($scLines) + @($addRows)
     [IO.File]::WriteAllText($scPath, ((($scLines) -join "`r`n") + "`r`n"), $enc)
-    Write-ModpackLog "[claim] 追加 5 个脚本（mark/settle_one/settle/peace/purge）"
+    Write-ModpackLog "[claim] 追加 7 个脚本（mark/settle_one/settle/peace/purge/q_push/q_pop）"
 
     # 钩子 1：aux 里 party_set_faction 之后调用 mark
     $auxIdx = -1
@@ -3297,6 +3375,59 @@ function Apply-Claim([string]$modDir) {
     [IO.File]::WriteAllText($tPath, ((($tLines) -join "`r`n") + "`r`n"), $enc)
     Write-ModpackLog '[claim] 钩子已挂：中心易手（mark）、归属落定（settle）、停战（peace）、48h 清理（purge）'
 
+}
+
+# 宣称队列变量重排：Apply-Claim 运行时变量追加在当时的位置，后面的功能还会追加变量，
+# 会让「后续功能变量」整体位移（旧存档按索引读 → 错位）。这里把队列变量移到末尾，
+# 其余变量保持原顺序 → 索引与「没有队列变量时」一致；再把所有数据文件里的变量 tag 重算。
+function Finalize-ClaimVars([string]$modDir) {
+    $enc = [Text.Encoding]::GetEncoding(28591)
+    $TAG_VAR = [int64]144115188075855872
+    $vPath = Join-Path $modDir 'variables.txt'
+    $names = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
+    $qNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
+    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_c$i" }
+    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_f$i" }
+    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_t$i" }
+    $pos = @{}
+    for ($i = 0; $i -lt $names.Count; $i++) { if ($qNames -contains $names[$i]) { $pos[$names[$i]] = $i } }
+    if ($pos.Count -ne $qNames.Count) { throw "变量表里没有完整的宣称队列变量（$($pos.Count)/$($qNames.Count)）" }
+    $oldCount = $names.Count
+    # 已经在末尾则不动
+    $atTail = $true
+    for ($i = 0; $i -lt $qNames.Count; $i++) {
+        if ($names[$oldCount - $qNames.Count + $i] -ne $qNames[$i]) { $atTail = $false; break }
+    }
+    if ($atTail) { return }
+    $nonQ = @($names | Where-Object { $qNames -notcontains $_ })
+    $qOrdered = @($names | Where-Object { $qNames -contains $_ })
+    $newNames = @($nonQ) + @($qOrdered)
+    $newIdx = @{}
+    for ($i = 0; $i -lt $newNames.Count; $i++) { $newIdx[$newNames[$i]] = $i }
+    $files = @('scripts.txt', 'conversation.txt', 'menus.txt', 'simple_triggers.txt', 'triggers.txt',
+        'mission_templates.txt', 'presentations.txt', 'quests.txt', 'info_pages.txt', 'party_templates.txt')
+    $texts = @{}
+    foreach ($f in $files) {
+        $p = Join-Path $modDir $f
+        if (Test-Path $p) { $texts[$f] = [IO.File]::ReadAllText($p, $enc) }
+    }
+    # 两步替换：先换成占位符，再换成新 tag，避免旧/新索引区间重叠时链式误替换
+    for ($i = 0; $i -lt $oldCount; $i++) {
+        if ($i -eq [int]$newIdx[$names[$i]]) { continue }
+        $oldTag = [string]($TAG_VAR + $i)
+        $ph = "@@VB$i@@"
+        foreach ($f in @($texts.Keys)) { $texts[$f] = $texts[$f].Replace($oldTag, $ph) }
+    }
+    for ($i = 0; $i -lt $oldCount; $i++) {
+        $newI = [int]$newIdx[$names[$i]]
+        if ($i -eq $newI) { continue }
+        $ph = "@@VB$i@@"
+        $newTag = [string]($TAG_VAR + $newI)
+        foreach ($f in @($texts.Keys)) { $texts[$f] = $texts[$f].Replace($ph, $newTag) }
+    }
+    [IO.File]::WriteAllText($vPath, (($newNames -join "`r`n") + "`r`n"), $enc)
+    foreach ($f in @($texts.Keys)) { [IO.File]::WriteAllText((Join-Path $modDir $f), $texts[$f], $enc) }
+    Write-ModpackLog "[claim] 队列变量已移到变量表末尾（共 $oldCount 个）"
 }
 
 # ---------- Lua 消息出口（WSE2 可选增强） ----------
@@ -3609,6 +3740,9 @@ if ($Features -contains 'drill')      { Apply-Drill $target }
 if ($Features -contains 'patrol')     { Apply-Patrol $target }
 if ($Features -contains 'sortitems')  { Apply-SortItems $target }
 if ($Features -contains 'cheatlang')  { Apply-CheatLang $target }
+
+# 变量重排：宣称队列变量移到变量表末尾（其余变量索引与旧存档保持一致）
+if ($Features -contains 'claim') { Finalize-ClaimVars $target }
 
 # 3) 应用游戏参数（params.md 里填的）
 Apply-Params $target
