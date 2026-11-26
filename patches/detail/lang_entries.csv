@@ -1,0 +1,30 @@
+str_detail_stats|等 级 ： {reg5}  魅 力 ： {reg6}  统 御 ： {reg7}  教 练 ： {reg8}  战 术 ： {reg9}^
+str_detail_personality|性 格 ： {s56}^
+str_detail_loyalty|金 钱 ： {reg0}^
+str_detail_rel_value| {reg0}
+str_detail_faction_relations|同 派 系 关 系 ： {s59}^
+str_detail_location|位 置 ： {s1}^
+str_detail_all|{s55}{s57}{s58}{s60}{s61}
+str_detail_rep_none|？
+str_detail_append|{s59}{s2}{s3} 
+str_detail_rep_martial|武 勇
+str_detail_rep_quarrelsome|好 斗
+str_detail_rep_selfrighteous|冷 酷
+str_detail_rep_cunning|狡 诈
+str_detail_rep_debauched|残 忍
+str_detail_rep_goodnatured|温 和
+str_detail_rep_upstanding|正 直
+str_detail_rep_roguish|流 氓
+str_detail_rep_benefactor|慈 善 家
+str_detail_rep_custodian|守 护 者
+str_detail_rep_conventional|保 守
+str_detail_rep_adventurous|爱 冒 险
+str_detail_rep_otherworldly|超 凡
+str_detail_rep_ambitious|野 心
+str_detail_rep_moralist|道 德 家
+str_detail_debt|{s58}欠 你 ： {reg0}^
+str_detail_king_relation|与 君 主 的 关 系 ： {reg0}^
+str_detail_relation_suffix|{s59} （ 关 系 ： {reg1} ）
+str_relation_with_liege_reg0_|
+str_current_wealth_reg1_taxes_last_collected_from_s4|
+str_s1_s2_relation_reg3_last_visit_reg4_days_ago|

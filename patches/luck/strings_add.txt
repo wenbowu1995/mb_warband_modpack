@@ -1,0 +1,6 @@
+str_wb_luck_grade_1 scant
+str_wb_luck_grade_2 meager
+str_wb_luck_grade_3 barely_adequate
+str_wb_luck_grade_4 sufficient
+str_wb_luck_grade_5 bountiful
+str_wb_luck_grade_6 magnificent

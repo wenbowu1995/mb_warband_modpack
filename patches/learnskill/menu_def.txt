@@ -1,0 +1,2 @@
+menu_learn_skill 4096 Learn_from_a_companion. none 0 5
+ mno_learn_leadership  0  Learn_Leadership.  1  1 2 {{SCRIPT}} 1  .  mno_learn_prisoner_management  0  Learn_Prisoner_Management.  1  1 2 {{SCRIPT}} 2  .  mno_learn_persuasion  0  Learn_Persuasion.  1  1 2 {{SCRIPT}} 7  .  mno_learn_inventory_management  0  Learn_Inventory_Management.  1  1 2 {{SCRIPT}} 12  .  mno_learn_back  0  Back.  1  2060 1 {{TRAINING}}  .

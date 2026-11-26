@@ -1,0 +1,12 @@
+dlga_lord_talk:wb_drill_offer|我 想 让 你 放 下 领 主 身 份 ， 回 到 我 的 队 伍 。
+dlga_wb_drill_offer:wb_drill_confirm|你 是 要 我 交 还 领 地 和 兵 士 ， 重 新 跟 随 你 ？
+dlga_wb_drill_confirm:wb_drill_done|就 这 么 办 。
+dlga_wb_drill_confirm:lord_pretalk|算 了 ， 你 还 是 继 续 当 你 的 领 主 吧 。
+dlga_wb_drill_done:close_window|好 的 ， 我 这 就 收 拾 行 装 跟 你 走 。
+dlga_member_question_2:wb_outland_ask|我 想 让 你 去 别 的 国 家 闯 一 闯 。 我 和 几 位 国 王 交 情 不 错 ， 可 以 替 你 引 荐 。
+dlga_wb_outland_ask:wb_outland_pick|你 打 算 把 我 引 荐 给 哪 位 国 王 ？
+dlga_wb_outland_pick:wb_outland_confirm|{s11} 的 {s10}（关 系 {reg5}）
+dlga_wb_outland_pick:close_window|算 了 。
+dlga_wb_outland_confirm:wb_outland_done|那 我 就 把 你 引 荐 给 {s11} 的 {s10} 。
+dlga_wb_outland_confirm:close_window|算 了 。
+dlga_wb_outland_done:close_window|好 的 ， 我 这 就 动 身 。

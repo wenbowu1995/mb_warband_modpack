@@ -1,0 +1,12 @@
+dlga_lord_talk:wb_drill_offer 69631 {{LORD_TALK}} 1 1 2 {{DRILL_CAN}} 144115188075855987 I_wish_you_to_lay_down_your_lordship_and_return_to_my_party.  9060  0 NO_VOICEOVER
+dlga_wb_drill_offer:wb_drill_confirm 4095 9060 0 Do_you_ask_me_to_give_up_my_lands_and_soldiers_and_serve_in_your_party_again?  9061  0 NO_VOICEOVER
+dlga_wb_drill_confirm:wb_drill_done 69631 9061 0 So_be_it.  9062  2 2133 2 {{DRILL_PENDING}} 144115188075855987 2133 2 {{LEAVE_ENC}} 1 NO_VOICEOVER
+dlga_wb_drill_confirm:lord_pretalk 69631 9061 0 On_second_thought,_keep_your_lordship.  154  0 NO_VOICEOVER
+dlga_wb_drill_done:close_window 4095 9062 0 Very_well._I_will_gather_my_things_and_follow_you.  6  0 NO_VOICEOVER
+dlga_member_question_2:wb_outland_ask 69631 {{MEMBER_QUESTION2}} 1 1 2 {{PROBE}} 144115188075855987 I_want_you_to_seek_your_fortune_in_another_kingdom._I_have_good_relations_with_several_kings_and_can_recommend_you.  9070  0 NO_VOICEOVER
+dlga_wb_outland_ask:wb_outland_pick 4095 9070 0 To_which_king_should_I_be_presented?  9071  0 NO_VOICEOVER
+dlga_wb_outland_pick:wb_outland_confirm 73727 9071 10 50 1 1224979098644774912 33 3 1224979098644774912 432345564227567630 432345564227567637 2147483679 2 1224979098644774912 432345564227567630 542 3 1224979098644774912 21 0 522 3 1224979098644774913 1224979098644774912 11 1 3 {{REL_GET}} 360287970189639680 1224979098644774913 32 2 72057594037927936 0 2133 2 72057594037927941 72057594037927936 2322 2 10 1224979098644774913 2335 2 11 1224979098644774912 {s11}_({s10},_relation_{reg5})  9072  1 50 1 {{OUT_FACTION}} NO_VOICEOVER
+dlga_wb_outland_pick:close_window 69631 9071 0 Never_mind.  6  0 NO_VOICEOVER
+dlga_wb_outland_confirm:wb_outland_done 69631 9072 3 522 3 1224979098644774913 {{OUT_FACTION}} 11 2322 2 10 1224979098644774913 2335 2 11 {{OUT_FACTION}} Then_I_will_present_you_to_{s10}_of_{s11}.  9073  1 1 3 {{SEND}} 144115188075855987 {{OUT_FACTION}} NO_VOICEOVER
+dlga_wb_outland_confirm:close_window 69631 9072 0 Never_mind.  6  0 NO_VOICEOVER
+dlga_wb_outland_done:close_window 4095 9073 0 I_shall_seek_my_fortune_there._Farewell.  6  0 NO_VOICEOVER

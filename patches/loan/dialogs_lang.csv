@@ -1,0 +1,7 @@
+dlga_lord_talk_ask_something_2:wb_loan_ask|我 听 说 你 近 来 手 头 不 宽 裕 。
+dlga_wb_loan_ask:wb_loan_amount|我 正 需 钱 粮 扩 充 军 队 。 你 能 借 我 多 少 ？
+dlga_wb_loan_amount:wb_loan_thanks|4000 第 纳 尔 。
+dlga_wb_loan_amount:wb_loan_thanks.1|7000 第 纳 尔 。
+dlga_wb_loan_amount:wb_loan_thanks.2|10000 第 纳 尔 。
+dlga_wb_loan_thanks:lord_pretalk|多 谢 ， {playername} 。 这 份 恩 情 我 记 下 了 。
+dlga_wb_loan_amount:lord_pretalk|不 必 了 。

@@ -1,0 +1,13 @@
+# 运行时日志（生成器每次运行会覆盖）
+debug.log
+*.log
+
+# 临时/半成品
+*.new
+*.tmp
+tmp/
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

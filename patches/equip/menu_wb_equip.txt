@@ -1,0 +1,2 @@
+menu_wb_equip 4096 Change_equipment. none 1 2031 1 1441151880758558728 4
+ mno_wb_equip_armor  0  Best_armor.  2 1 1 {{S8}} 2060 1 {{M0}}  .  mno_wb_equip_weapon  0  Weapons_by_troop_type.  2 1 1 {{S9}} 2060 1 {{M0}}  .  mno_wb_equip_horse  0  Best_horse.  2 1 1 {{S10}} 2060 1 {{M0}}  .  mno_wb_equip_back  0  Back.  1 2060 1 {{M1}}  . 

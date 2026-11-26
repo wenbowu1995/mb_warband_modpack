@@ -1,0 +1,9 @@
+dlga_spouse_talk:wb_luck_offering_ask|亲 爱 的 ， 我 感 觉 最 近 不 太 走 运 。
+dlga_wb_luck_offering_ask:wb_luck_offering_eval|我 们 可 以 进 行 一 次 祈 运 ， 目 前 贡 品 是 {s9} 的 ， 要 现 在 开 始 吗 ？
+dlga_wb_luck_offering_eval:close_window|好 ， 让 我 们 开 始 祈 运 吧 。
+dlga_wb_luck_offering_eval:wb_luck_offering_added|再 让 我 往 仓 库 里 添 些 物 资 。
+dlga_wb_luck_offering_eval:spouse_pretalk|暂 时 不 了 。
+dlga_wb_luck_offering_ask:wb_luck_offering_meager|我 们 可 以 进 行 一 次 祈 运 ， 但 我 们 的 物 资 不 够 充 足 。
+dlga_wb_luck_offering_meager:wb_luck_offering_added|再 让 我 往 仓 库 里 添 些 物 资 。
+dlga_wb_luck_offering_meager:spouse_pretalk|暂 时 不 了 。
+dlga_wb_luck_offering_added:wb_luck_offering_eval|好 ， 再 清 点 一 下 家 底 。

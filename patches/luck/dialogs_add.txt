@@ -1,0 +1,7 @@
+dlga_spouse_talk:wb_luck_offering_ask 69631 469 2 1 1 {{EVAL}} 2147483680 2 {{LUCK}} 100 My_wife,_I_feel_our_fortunes_have_been_poor_lately. 9010 0 NO_VOICEOVER
+dlga_wb_luck_offering_ask:wb_luck_offering_eval 4095 9010 1 1 1 {{EVAL}} Our_current_offerings_are_{s9}._Shall_we_begin_now? 9011 0 NO_VOICEOVER
+dlga_wb_luck_offering_eval:close_window 69631 9011 1 32 2 {{TOTAL_VAR}} 40 Yes,_let_us_begin_the_rites. 6 2 1 1 {{DO}} 2060 1 {{WAIT_MENU}} NO_VOICEOVER
+dlga_wb_luck_offering_eval:wb_luck_offering_added 69631 9011 0 Let_me_add_more_supplies_to_our_storehouses. 9014 1 2041 1 360287970189640508 NO_VOICEOVER
+dlga_wb_luck_offering_eval:spouse_pretalk 69631 9011 0 Not_for_now. 723 0 NO_VOICEOVER
+dlga_wb_luck_offering_eval:wb_luck_offering_meager 4095 9011 1 2147483678 2 {{TOTAL_VAR}} 40 I_think_we_could_lay_out_offerings_and_pray._But_we_do_not_have_enough_supplies. 723 0 NO_VOICEOVER
+dlga_wb_luck_offering_added:wb_luck_offering_eval 4095 9014 0 Let_us_reevaluate_our_household_possessions. 9010 0 NO_VOICEOVER

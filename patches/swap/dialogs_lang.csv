@@ -1,0 +1,13 @@
+dlga_minister_talk:wb_swap_ask_a|我 想 调 换 两 处 领 地 。
+dlga_wb_swap_ask_a:wb_swap_pick_castle|你 想 先 交 出 哪 一 座 城 池 或 堡 垒 ？
+dlga_wb_swap_pick_castle:wb_swap_ask_fief|{s1}
+dlga_wb_swap_pick_castle:minister_pretalk|算 了 。
+dlga_wb_swap_ask_fief:wb_swap_pick_fief|{s1} 名 下 要 交 出 哪 一 处 ？
+dlga_wb_swap_pick_fief:wb_swap_ask_b|{s1}
+dlga_wb_swap_pick_fief:minister_pretalk|算 了 。
+dlga_wb_swap_ask_b:wb_swap_pick_b|那 另 一 处 呢 ？
+dlga_wb_swap_pick_b:wb_swap_confirm|{s1}
+dlga_wb_swap_pick_b:minister_pretalk|算 了 。
+dlga_wb_swap_confirm:wb_swap_done|把 {s1}（{s3}）与 {s2}（{s4}）交 换 ？
+dlga_wb_swap_confirm:minister_pretalk|算 了 。
+dlga_wb_swap_done:minister_pretalk|如 此 定 了 。

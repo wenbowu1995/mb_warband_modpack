@@ -1,0 +1,11 @@
+dlga_lord_talk_ask_something_2:wb_reconcile_ask 69631 491 2 1 3 {{REL}} 360287970189639680 144115188075855987 2147483678 2 72057594037927936 0 Can_we_let_bygones_be_bygones?  9003  0 NO_VOICEOVER
+dlga_wb_reconcile_ask:wb_reconcile_menu 4095 9003 0 I_have_heard_you_wish_to_make_amends,_and_that_speaks_well_of_you._What_do_you_have_in_mind?  9004  0 NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks 69631 9004 2 2149 2 72057594037927936 360287970189639680 32 2 72057594037927936 {{GOLD_COST}} This_purse_of_{{GOLD_COST}}_denars_is_yours.  9005  2 1 3 {{CHG}} 144115188075855987 {{GOLD_REL}} 1529 2 360287970189639680 {{GOLD_COST}} NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks.1 69631 9004 1 150 1 {{I_VELVET}} Accept_this_bolt_of_velvet.  9005  2 1 3 {{CHG}} 144115188075855987 {{REL_VELVET}} 1531 2 360287970189639680 {{I_VELVET}} NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks.2 69631 9004 1 150 1 {{I_SPICE}} Accept_this_pack_of_spice.  9005  2 1 3 {{CHG}} 144115188075855987 {{REL_SPICE}} 1531 2 360287970189639680 {{I_SPICE}} NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks.3 69631 9004 1 150 1 {{I_TOOLS}} Accept_this_set_of_tools.  9005  2 1 3 {{CHG}} 144115188075855987 {{REL_TOOLS}} 1531 2 360287970189639680 {{I_TOOLS}} NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks.4 69631 9004 1 150 1 {{I_OIL}} Accept_this_barrel_of_oil.  9005  2 1 3 {{CHG}} 144115188075855987 {{REL_OIL}} 1531 2 360287970189639680 {{I_OIL}} NO_VOICEOVER
+dlga_wb_reconcile_menu:wb_reconcile_thanks.5 69631 9004 1 150 1 {{I_RAW_SILK}} Accept_this_bundle_of_raw_silk.  9005  2 1 3 {{CHG}} 144115188075855987 {{REL_SILK}} 1531 2 360287970189639680 {{I_RAW_SILK}} NO_VOICEOVER
+dlga_wb_reconcile_menu:lord_pretalk 69631 9004 0 Never_mind.  154  0 NO_VOICEOVER
+dlga_wb_reconcile_thanks:wb_reconcile_menu 4095 9005 2 1 3 {{REL}} 360287970189639680 144115188075855987 2147483678 2 72057594037927936 0 Perhaps_you_are_not_so_bad_after_all._I_will_let_the_past_be_the_past.  9004  0 NO_VOICEOVER
+dlga_wb_reconcile_thanks:lord_pretalk 4095 9005 0 Enough._Our_quarrel_ends_here.  154  0 NO_VOICEOVER

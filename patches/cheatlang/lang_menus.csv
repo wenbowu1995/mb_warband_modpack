@@ -1,0 +1,52 @@
+menu_camp_cheat|选 择 一 项 作 弊 ：
+mno_camp_cheat_find_item|查 找 物 品 … …
+mno_camp_cheat_change_weather|修 改 天 气 … …
+mno_camp_cheat_1|{!}增 加 玩 家 声 望 。
+mno_camp_cheat_2|{!}增 加 玩 家 荣 誉 。
+mno_camp_cheat_3|{!}重 算 政 治 笔 记 。
+mno_camp_cheat_4|{!}重 算 人 物 笔 记 。
+mno_camp_cheat_5|{!}重 置 吟 游 诗 人 。
+mno_camp_cheat_6|{!}无 限 扎 营
+mno_camp_cheat_debug_all|{!}作 弊 ： 调 试 消 息 设 为 全 部 。
+mno_camp_cheat_debug_econ|{!}作 弊 ： 调 试 消 息 仅 经 济 。
+mno_camp_cheat_debug_political|{!}作 弊 ： 调 试 消 息 仅 政 治 。
+mno_back_to_camp_menu|{!}返 回 营 地 菜 单 。
+menu_cheat_find_item|{!}当 前 物 品 范 围 ： {reg5} 至 {reg6}
+mno_cheat_find_item_next_range|{!}跳 到 下 一 段 物 品 。
+mno_cheat_find_item_choose_this|{!}从 这 一 段 中 选 取 。
+mno_cheat_back_camp|{!}返 回 营 地 菜 单 。
+menu_cheat_change_weather|{!}当 前 云 量 ： {reg5}^ 当 前 雾 浓 度 ： {reg6}
+mno_cheat_increase_cloud|{!}增 加 云 量 。
+mno_cheat_decrease_cloud|{!}减 少 云 量 。
+mno_cheat_increase_fog|{!}增 加 雾 浓 度 。
+mno_cheat_decrease_fog|{!}减 少 雾 浓 度 。
+mno_camp_cheat|作 弊 菜 单 ！
+mno_camp_action_1|{!}作 弊 ： 四 处 走 走 。
+mno_cheat_faction_orders|{!}作 弊 ： 阵 营 命 令 。
+mno_status_check|{!}检 查 NPC 状 态 。
+mno_faction_orders_political_collapse|{!}作 弊 ： 让 本 阵 营 全 体 领 主 与 君 主 反 目 。
+mno_enable_alt_ai|{!}作 弊 ： 启 用 替 代 阵 营 人 工 智 能 。
+mno_disable_alt_ai|{!}作 弊 ： 关 闭 替 代 阵 营 人 工 智 能 。
+mno_faction_orders_next_faction|{!}选 择 下 一 个 势 力 。
+mno_faction_orders_defend|{!}强 制 防 守 。
+mno_faction_orders_feast|{!}强 制 举 办 宴 会 。
+mno_faction_orders_gather|{!}强 制 集 结 军 队 。
+mno_faction_orders_increase_time|{!}把 上 次 进 攻 时 间 延 后 24 小 时 。
+mno_faction_orders_rethink|{!}强 制 重 新 考 虑 。
+mno_faction_orders_rethink_all|{!}让 所 有 势 力 重 新 考 虑 。
+mno_faction_orders_init_econ|{!}初 始 化 经 济 数 据 。
+mno_cheat_inc_rtor|{!}作 弊 ： 统 治 权 +10
+mno_cheat_inc_relation|{!}作 弊 ： 与 {s14} 的 关 系 +10
+mno_cheat_inc_honor|{!}作 弊 ： 荣 誉 +10
+mno_cheat_inc_renown|{!}作 弊 ： 声 望 +50
+mno_cheat_inc_persuasion|{!}作 弊 ： 说 服 力 +1
+mno_cheat_castle_start_siege|{!}作 弊 ： 围 攻 {reg6?town:castle} … …
+mno_castle_cheat_interior|{!}作 弊 ： 进 入 内 部 。
+mno_castle_cheat_exterior|{!}作 弊 ： 进 入 外 部 。
+mno_castle_cheat_town_walls|{!}作 弊 ： 登 上 城 墙 。
+mno_cheat_castle_lead_attack|{!}作 弊 ： 立 刻 建 好 攻 城 器 械 。
+mno_cheat_conquer_castle|{!}作 弊 ： 立 刻 占 领 城 堡 。
+mno_go_to_track|{!}作 弊 ： 前 往 训 练 跑 道 。
+mno_go_to_range|{!}作 弊 ： 前 往 靶 场 。
+mno_action_modify_banner|{!}作 弊 ： 修 改 你 的 旗 帜 。
+mno_tutorial_cheat|{!}作 弊 ！
