@@ -2461,18 +2461,6 @@ function Apply-LuckTrigger([string]$modDir) {
     }
     if ($decayIdx -lt 0) { throw 'scripts.txt 里没有 wb_luck_decay_tick' }
     $decayTag = [string]($TAG_SCRIPT + $decayIdx)
-    $refundIdx = -1
-    for ($i = 0; $i -lt $nSc; $i++) {
-        $nm = ($scLines[2 + 2 * $i].Trim() -split '\s+')[0]
-        if ($nm -eq 'wb_claim_refund_check') { $refundIdx = $i; break }
-    }
-    $refundCall = ''
-    $refundStmts = 0
-    if ($refundIdx -ge 0) {
-        $refundTag = [string]($TAG_SCRIPT + $refundIdx)
-        $refundCall = ' 1 1 ' + $refundTag
-        $refundStmts = 1
-    }
     $tPath = Join-Path $modDir 'simple_triggers.txt'
     $tLines = @([IO.File]::ReadAllText($tPath, $enc) -split "\r?\n")
     $ti = -1
@@ -2482,14 +2470,14 @@ function Apply-LuckTrigger([string]$modDir) {
     if ($ti -ge 0) {
         # 选了「训练与学习」：供奉计时 + 运气衰减合并进学习技能的每小时触发器（不新增行）
         $lv = [regex]::Match($tLines[$ti], '^1\.000000\s+7\s+4 0 32 2 (\d+) 0 ').Groups[1].Value
-        $newLine = '1.000000  ' + [string](15 + $refundStmts) + ' 4 0 32 2 ' + $lv + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $lv + ' 2133 2 ' + $msgArgTagL + ' ' + $skillTagL + ' 2133 2 ' + $msgTagL + ' 4 2133 2 ' + $lv + ' 0 3 0 4 0 32 2 ' + $endVar + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $endVar + ' 1 1 ' + $tickTag + ' 3 0 1 1 ' + $decayTag + $refundCall
+        $newLine = '1.000000  ' + [string](15) + ' 4 0 32 2 ' + $lv + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $lv + ' 2133 2 ' + $msgArgTagL + ' ' + $skillTagL + ' 2133 2 ' + $msgTagL + ' 4 2133 2 ' + $lv + ' 0 3 0 4 0 32 2 ' + $endVar + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $endVar + ' 1 1 ' + $tickTag + ' 3 0 1 1 ' + $decayTag
         $tLines[$ti] = $newLine
         $luckTrigNote = '[luck] 供奉完成计时挂到学习技能触发器 + 空触发器补到 115（兼容旧档）'
     } else {
         # 没选「训练与学习」：运气单独一条每小时触发器（插到前部，WSE2 不执行末尾行）
         $cntAll = 0
         if (-not [int]::TryParse($tLines[1].Trim(), [ref]$cntAll)) { throw 'simple_triggers.txt 第 2 行不是数量' }
-        $luckLine = '1.000000  ' + [string](7 + $refundStmts) + ' 4 0 32 2 ' + $endVar + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $endVar + ' 1 1 ' + $tickTag + ' 3 0 1 1 ' + $decayTag + $refundCall
+        $luckLine = '1.000000  ' + [string](7) + ' 4 0 32 2 ' + $endVar + ' 0 2270 1 1224979098644774912 30 2 1224979098644774912 ' + $endVar + ' 1 1 ' + $tickTag + ' 3 0 1 1 ' + $decayTag
         $tLines[1] = [string]($cntAll + 1)
         $tLines = @($tLines[0], $tLines[1], $luckLine) + @($tLines[2..($tLines.Count - 1)])
         $luckTrigNote = '[luck] 供奉完成计时用独立每小时触发器（本次未生成「训练与学习」）'
@@ -3020,7 +3008,6 @@ function Apply-Claim([string]$modDir) {
     $TAG_VAR = [int64]144115188075855872
     $r12 = '1224979098644774912'; $r13 = '1224979098644774913'; $r14 = '1224979098644774914'
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
-    $pendingCenterVar = [string]($TAG_VAR + $msgIdx['g_wb_claim_pending_center'])
     $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
     # 消息合并字符串（中心名单累积）
     $sPath = Join-Path $modDir 'strings.txt'
@@ -3054,7 +3041,7 @@ function Apply-Claim([string]$modDir) {
     $markTag    = [string]($TAG + $n)
     $settleOneTag = [string]($TAG + ($n + 1))
     $settleTag  = [string]($TAG + ($n + 2))
-    $pushTag = [string]($TAG + ($n + 6))
+    $pushTag = [string]($TAG + ($n + 5))
     $peaceTag   = [string]($TAG + ($n + 3))
     $purgeTag   = [string]($TAG + ($n + 4))
 
@@ -3225,52 +3212,6 @@ function Apply-Claim([string]$modDir) {
         Set-Variable -Name $arrName -Value $newArr
     }
 
-    # 待决检查：玩家势力收复后未要求城市时的归还+补偿（挂 1h 触发器）
-    $refundScript = @(
-        '2133','2',$r15,'144115188075856287','4','0','2147483680','2',$r15,'34','2133','2',$r15,'0','3','0',
-        '2204','2',$r16,'648518346341351424',
-        
-        '4','0','32','2',$pendingCenterVar,'0',
-        '4','0','33','3',$r15,'1','32',
-        '542','3','72057594037927936',$r15,'0',
-        '2147483679','2','72057594037927936','360287970189639680',
-        '4','0','31','2','144115188075856231','360287970189639680',
-        '2133','2',$pendingCenterVar,'0',
-        '5','0',
-        '4','0','32','2',$pendingCenterVar,'0',
-        '521','3',$r12,$pendingCenterVar,'234',
-        '4','0','32','2',$r12,'0',
-        '1','4',$gclTag,$pendingCenterVar,$r12,'1',
-        '6','3','1224979098644774918','648518346341351445','648518346341351625',
-        '541','3','1224979098644774918','120',$pendingCenterVar,
-        '1','4',$gclTag,'1224979098644774918',$r12,'1',
-        '3','0',
-        '4','0','33','3',$pendingCenterVar,'648518346341351445','648518346341351467',
-        '2133','2','72057594037927936','3000',
-        '5','0',
-        '2133','2','72057594037927936','2000',
-        '3','0',
-        '6','3',$r13,'648518346341351445','648518346341351625',
-        '521','3',$r14,$r13,'120',
-        '31','2',$r14,$pendingCenterVar,
-        '2105','2','72057594037927936','500',
-        '3','0',
-        '1528','2','360287970189639680','72057594037927936',
-        '2133','2',$msgTypeVar,'2','2204','2',$r13,$pendingCenterVar,'2335','2','62',$r13,'2330','2','55',$pendingCenterVar,
-        '501','3',$pendingCenterVar,'234','0',
-        '501','3',$pendingCenterVar,'235','0',
-        '501','3',$pendingCenterVar,'236','0',
-        '501','3',$pendingCenterVar,'237','0',
-        '3','0',
-        '3','0',
-        '2133','2',$pendingCenterVar,'0',
-        '3','0',
-        '5','0',
-        '2133','2',$pendingCenterVar,'0',
-        '3','0',
-        '3','0'
-    )
-
     # 消息入队脚本（队列存 p_temp_party 槽 600+；type/arg1/arg2 各 16 槽）
     $msgPushScript = @(
         '21','1',$r12,
@@ -3295,7 +3236,6 @@ function Apply-Claim([string]$modDir) {
         @('wb_claim_settle', $settle),
         @('wb_claim_peace', $peace),
         @('wb_claim_purge', $purge),
-        @('wb_claim_refund_check', $refundScript),
         @('wb_claim_msg_push', $msgPushScript)
     )
     # 追加脚本：名字行 + 体行（体行首 token = 语句数）
