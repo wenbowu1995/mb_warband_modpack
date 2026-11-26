@@ -3021,8 +3021,6 @@ function Apply-Claim([string]$modDir) {
     }
     $msgJoinId = [string](216172782113783808 + $nStr)
     $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
-    $msgCenterVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_center'])
-    $msgLordVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_lord'])
     $msgCountVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_count'])
 
     $TAG = [int64]936748722493063168   # tag_script(13) << 56
@@ -3042,7 +3040,7 @@ function Apply-Claim([string]$modDir) {
     $markTag    = [string]($TAG + $n)
     $settleOneTag = [string]($TAG + ($n + 1))
     $settleTag  = [string]($TAG + ($n + 2))
-    $pushTag = [string]($TAG + ($n + 7))
+    $pushTag = [string]($TAG + ($n + 6))
     $peaceTag   = [string]($TAG + ($n + 3))
     $purgeTag   = [string]($TAG + ($n + 4))
 
@@ -3213,23 +3211,6 @@ function Apply-Claim([string]$modDir) {
         Set-Variable -Name $arrName -Value $newArr
     }
 
-    # 玩家主动归还脚本（castle_taken 菜单选项调用）
-    $returnScript = @(
-        '521','3',$r12,'144115188075856273',$slClaimLord,
-        '4','0',
-        '32','2',$r12,'0',
-        '521','3',$r13,'144115188075856273',$slClaimFaction,
-        '1','4',$gclTag,'144115188075856273',$r12,'1',
-        '501','3','144115188075856273',$slClaimLord,'0',
-        '501','3','144115188075856273',$slClaimFaction,'0',
-        '501','3','144115188075856273',$slPending,'0',
-        '501','3','144115188075856273',$slPendingLord,'0',
-        '3','0'
-    )
-    if ($dbg -eq 1) {
-        $returnScript = $returnScript + @('2133','2',$msgTypeVar,'2','2133','2',$msgCenterVar,'144115188075856273','2133','2',$msgLordVar,$r12)
-    }
-
     # 待决检查：玩家势力收复后未要求城市时的归还+补偿（挂 1h 触发器）
     $refundScript = @(
         '2133','2',$r15,'144115188075856287','4','0','2147483680','2',$r15,'34','2133','2',$r15,'0','3','0',
@@ -3300,7 +3281,6 @@ function Apply-Claim([string]$modDir) {
         @('wb_claim_settle', $settle),
         @('wb_claim_peace', $peace),
         @('wb_claim_purge', $purge),
-        @('wb_claim_return', $returnScript),
         @('wb_claim_refund_check', $refundScript),
         @('wb_claim_msg_push', $msgPushScript)
     )
@@ -3410,7 +3390,6 @@ function Apply-Claim([string]$modDir) {
     Write-ModpackLog '[claim] 钩子已挂：中心易手（mark）、归属落定（settle）、停战（peace）、48h 清理（purge）'
 
     # 菜单选项：castle_taken 加「归还给原领主」——当前引擎下 menus.txt 选项行解析不兼容（加载 EOF 崩溃），已回滚
-    # wb_claim_return 脚本保留备用（未被调用，无害）
 
     # 最小验证：新增「攻下城后」对话状态（验证 conversation 插状态可行）
     $convPath = Join-Path $modDir 'conversation.txt'

@@ -65,8 +65,6 @@ local function flush_message()
         local sid = game.gvar.g_wb_msg_arg1
         local names = { [1] = "统御", [2] = "俘虏管理", [7] = "说服力", [12] = "物品管理" }
         show("你向同伴讨教诀窍，渐渐摸到门道，" .. (names[sid] or "技能") .. "技能 +1。")
-    elseif t == 5 then
-        show("队中已无人在此道上胜过你。")
     elseif t == 6 then
         show(lord .. " 还清了借款，计 " .. game.gvar.g_wb_msg_arg1 .. " 第纳尔。")
     elseif t == 7 then
@@ -100,10 +98,6 @@ local function flush_message()
         show(lord .. " 已是队中经验最高者，暂时无人可教。")
     elseif t == 18 then
         show("受指导者已不在队伍中，传授停止。")
-    elseif t == 19 then
-        show("已离开据点，传授停止。")
-    elseif t == 22 then
-        show("工资触发器：巡逻队总额 " .. game.gvar.g_wb_msg_arg1 .. " 第纳尔。")
     elseif t == 21 then
         show("巡逻队本周工资 " .. game.gvar.g_wb_msg_arg1 .. " 第纳尔。")
     elseif t == 23 then
