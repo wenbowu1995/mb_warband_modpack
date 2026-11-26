@@ -118,6 +118,10 @@ local function flush_message()
         local ok = game.gvar.g_wb_msg_arg1
         local occ = game.gvar.g_wb_msg_arg2
         show("调试·派出选项：同伴判断=" .. (ok == 1 and "是" or "否") .. "，occupation=" .. occ, 0xFF00FF)
+    elseif t == 28 then
+        show("从 " .. center .. " 征募了 " .. game.gvar.g_wb_msg_arg1 .. " 名志愿兵。")
+    elseif t == 29 then
+        show("共征募 " .. game.gvar.g_wb_msg_arg1 .. " 名志愿兵。")
     elseif t == 20 then
         show("传授停止。")
     end

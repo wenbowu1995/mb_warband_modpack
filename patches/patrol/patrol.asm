@@ -561,7 +561,7 @@ try_begin
     troop_remove_gold trp_player :l10
     assign {{VAR_VR_LAST}} :l5
     str_store_party_name s55 :l3
-    assign {{MSG_T}} 23
+    assign {{MSG_T}} 28
     assign {{MSG_A}} :l5
   try_end
 try_end
@@ -598,6 +598,6 @@ try_end
 try_begin
   gt :l20 0
   assign {{VAR_VR_LAST}} :l20
-  assign {{MSG_T}} 24
+  assign {{MSG_T}} 29
   assign {{MSG_A}} :l20
 try_end
