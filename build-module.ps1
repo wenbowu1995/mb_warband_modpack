@@ -3011,11 +3011,12 @@ function Apply-Claim([string]$modDir) {
         $msgIdx[$vn] = $found
     }
     $TAG_VAR = [int64]144115188075855872
-    # 宣称消息队列变量（type/center/faction 各 4 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
+    # 宣称消息队列变量（type/center/faction/lord 各 8 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
     $qVarNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
+    for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_l$qi" }
     foreach ($vn in $qVarNames) {
         if (-not ($varList -contains $vn)) { $varList += $vn }
     }
@@ -3035,11 +3036,12 @@ function Apply-Claim([string]$modDir) {
     # 队列变量 tag
     $qNVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_n'])
     $qTypeVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_type'])
-    $qCVar = @{}; $qFVar = @{}; $qTVar = @{}
+    $qCVar = @{}; $qFVar = @{}; $qTVar = @{}; $qLVar = @{}
     for ($qi = 1; $qi -le 8; $qi++) {
         $qCVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_c$qi"])
         $qFVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_f$qi"])
         $qTVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_t$qi"])
+        $qLVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_l$qi"])
     }
 
     $TAG = [int64]936748722493063168   # tag_script(13) << 56
@@ -3101,7 +3103,7 @@ function Apply-Claim([string]$modDir) {
     )
     if ($dbg -eq 1) {
         # 攻占消息入队（type 1），由 Lua 每帧逐条取出显示，避免同帧多条互相覆盖
-        $mark += @('1','4',$qPushTag,'1',$r12,$r14)
+        $mark += @('1','5',$qPushTag,'1',$r12,$r14,$r15)
         if ($qdbg -eq 1) {
             # 调试：同一条消息再多入队 2 次（共 3 条），攻城一次就能看到队列逐条打印
             $mark += @('1','4',$qPushTag,'1',$r12,$r14,'1','4',$qPushTag,'1',$r12,$r14)
@@ -3144,7 +3146,7 @@ function Apply-Claim([string]$modDir) {
         '3','0',
         '1528','2','360287970189639680','72057594037927936',
         '3','0'
-    ) + $(if ($dbg -eq 1) { @('1','4',$qPushTag,'2',$r12,$r16) } else { @() }) + @(
+    ) + $(if ($dbg -eq 1) { @('1','5',$qPushTag,'2',$r12,$r16,$r14) } else { @() }) + @(
         '501','3',$r12,'234','0',
         '501','3',$r12,'235','0',
         '3','0',
@@ -3217,42 +3219,47 @@ function Apply-Claim([string]$modDir) {
         '3','0'
     )
 
-    # 6) 消息队列：入队（type, center, faction；最多 8 条，满了直接丢弃新消息）
+    # 6) 消息队列：入队（type, center, faction, lord；最多 8 条，满了直接丢弃新消息）
     $qPush = @(
         '23','2',$r12,'1',
         '23','2',$r13,'2',
         '23','2',$r14,'3',
-        '2133','2',$r15,$qNVar
+        '23','2',$r15,'4',
+        '2133','2',$r16,$qNVar
     )
     for ($qi = 0; $qi -lt 8; $qi++) {
-        if ($qi -eq 0) { $qPush += @('4','0','31','2',$r15,'0') }
-        else { $qPush += @('5','0','31','2',$r15,[string]$qi) }
+        if ($qi -eq 0) { $qPush += @('4','0','31','2',$r16,'0') }
+        else { $qPush += @('5','0','31','2',$r16,[string]$qi) }
         $k = $qi + 1
         $qPush += @('2133','2',$qTVar[$k],$r12,
             '2133','2',$qCVar[$k],$r13,
             '2133','2',$qFVar[$k],$r14,
+            '2133','2',$qLVar[$k],$r15,
             '2133','2',$qNVar,[string]$k)
     }
     $qPush += @('3','0')
 
-    # 7) 消息出队：把队首写进 s55（中心名）/ s62（势力名）+ 类型变量，供 Lua 读取显示
+    # 7) 消息出队：把队首写进 s55（中心名）/ s61（旧主领主名）/ s62（势力名）+ 类型变量，供 Lua 读取显示
     $qPop = @(
         '2133','2',$r15,$qNVar,
         '4','0',
         '32','2',$r15,'0',
         '2133','2',$qTypeVar,$qTVar[1],
         '2330','2','55',$qCVar[1],
-        '2335','2','62',$qFVar[1]
+        '2335','2','62',$qFVar[1],
+        '2322','2','61',$qLVar[1]
     )
     for ($qi = 1; $qi -lt 8; $qi++) {
         $a = $qi; $b = $qi + 1
         $qPop += @('2133','2',$qTVar[$a],$qTVar[$b],
             '2133','2',$qCVar[$a],$qCVar[$b],
-            '2133','2',$qFVar[$a],$qFVar[$b])
+            '2133','2',$qFVar[$a],$qFVar[$b],
+            '2133','2',$qLVar[$a],$qLVar[$b])
     }
     $qPop += @('2133','2',$qTVar[8],'0',
         '2133','2',$qCVar[8],'0',
         '2133','2',$qFVar[8],'0',
+        '2133','2',$qLVar[8],'0',
         '2106','2',$qNVar,'1',
         '3','0')
 
@@ -3384,6 +3391,7 @@ function Finalize-ClaimVars([string]$modDir) {
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_c$i" }
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_f$i" }
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_t$i" }
+    for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_l$i" }
     $pos = @{}
     for ($i = 0; $i -lt $names.Count; $i++) { if ($qNames -contains $names[$i]) { $pos[$names[$i]] = $i } }
     if ($pos.Count -ne $qNames.Count) { throw "变量表里没有完整的宣称队列变量（$($pos.Count)/$($qNames.Count)）" }

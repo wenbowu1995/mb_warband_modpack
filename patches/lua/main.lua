@@ -40,8 +40,8 @@ local function show(msg, color)
     end
 end
 
--- 宣称消息队列：Native 侧 wb_claim_q_push 入队（type/中心/势力，最多 4 条），
--- 这里每帧取一条：先调 wb_claim_q_pop 让它把名字写进 s55/s62，再显示。
+-- 宣称消息队列：Native 侧 wb_claim_q_push 入队（type/中心/势力/旧主领主，最多 8 条），
+-- 这里每帧取一条：先调 wb_claim_q_pop 让它把名字写进 s55/s61/s62，再显示。
 local function flush_claim_queue()
     if not (game.script and game.script.wb_claim_q_pop) then
         return
@@ -54,10 +54,11 @@ local function flush_claim_queue()
     local t = game.gvar.g_wb_claim_q_type
     local faction = game.sreg[62] or ""
     local center = game.sreg[55] or ""
+    local lord = game.sreg[61] or ""
     if t == 1 then
-        show(faction .. " 攻占了 " .. center .. "，旧主的宣称已被记下。", 0xFF6600)
+        show(faction .. " 攻占了 " .. center .. "，旧主 " .. lord .. " 的宣称已被记下。", 0xFF6600)
     elseif t == 2 then
-        show(faction .. " 收复失地 " .. center .. "，领地已归还原主。", 0x00CC00)
+        show(faction .. " 收复失地 " .. center .. "，领地已归还原主 " .. lord .. "。", 0x00CC00)
     end
 end
 
