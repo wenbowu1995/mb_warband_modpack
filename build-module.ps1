@@ -3013,9 +3013,9 @@ function Apply-Claim([string]$modDir) {
     $TAG_VAR = [int64]144115188075855872
     # 宣称消息队列变量（type/center/faction 各 4 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
     $qVarNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
-    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
-    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
-    for ($qi = 1; $qi -le 4; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
+    for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
+    for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
+    for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
     foreach ($vn in $qVarNames) {
         if (-not ($varList -contains $vn)) { $varList += $vn }
     }
@@ -3036,7 +3036,7 @@ function Apply-Claim([string]$modDir) {
     $qNVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_n'])
     $qTypeVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_type'])
     $qCVar = @{}; $qFVar = @{}; $qTVar = @{}
-    for ($qi = 1; $qi -le 4; $qi++) {
+    for ($qi = 1; $qi -le 8; $qi++) {
         $qCVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_c$qi"])
         $qFVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_f$qi"])
         $qTVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_t$qi"])
@@ -3217,34 +3217,23 @@ function Apply-Claim([string]$modDir) {
         '3','0'
     )
 
-    # 6) 消息队列：入队（type, center, faction；最多 4 条，满了直接丢弃新消息——测试用）
+    # 6) 消息队列：入队（type, center, faction；最多 8 条，满了直接丢弃新消息）
     $qPush = @(
         '23','2',$r12,'1',
         '23','2',$r13,'2',
         '23','2',$r14,'3',
-        '2133','2',$r15,$qNVar,
-        '4','0','31','2',$r15,'0',
-        '2133','2',$qTVar[1],$r12,
-        '2133','2',$qCVar[1],$r13,
-        '2133','2',$qFVar[1],$r14,
-        '2133','2',$qNVar,'1',
-        '5','0','31','2',$r15,'1',
-        '2133','2',$qTVar[2],$r12,
-        '2133','2',$qCVar[2],$r13,
-        '2133','2',$qFVar[2],$r14,
-        '2133','2',$qNVar,'2',
-        '5','0','31','2',$r15,'2',
-        '2133','2',$qTVar[3],$r12,
-        '2133','2',$qCVar[3],$r13,
-        '2133','2',$qFVar[3],$r14,
-        '2133','2',$qNVar,'3',
-        '5','0','31','2',$r15,'3',
-        '2133','2',$qTVar[4],$r12,
-        '2133','2',$qCVar[4],$r13,
-        '2133','2',$qFVar[4],$r14,
-        '2133','2',$qNVar,'4',
-        '3','0'
+        '2133','2',$r15,$qNVar
     )
+    for ($qi = 0; $qi -lt 8; $qi++) {
+        if ($qi -eq 0) { $qPush += @('4','0','31','2',$r15,'0') }
+        else { $qPush += @('5','0','31','2',$r15,[string]$qi) }
+        $k = $qi + 1
+        $qPush += @('2133','2',$qTVar[$k],$r12,
+            '2133','2',$qCVar[$k],$r13,
+            '2133','2',$qFVar[$k],$r14,
+            '2133','2',$qNVar,[string]$k)
+    }
+    $qPush += @('3','0')
 
     # 7) 消息出队：把队首写进 s55（中心名）/ s62（势力名）+ 类型变量，供 Lua 读取显示
     $qPop = @(
@@ -3253,22 +3242,19 @@ function Apply-Claim([string]$modDir) {
         '32','2',$r15,'0',
         '2133','2',$qTypeVar,$qTVar[1],
         '2330','2','55',$qCVar[1],
-        '2335','2','62',$qFVar[1],
-        '2133','2',$qTVar[1],$qTVar[2],
-        '2133','2',$qCVar[1],$qCVar[2],
-        '2133','2',$qFVar[1],$qFVar[2],
-        '2133','2',$qTVar[2],$qTVar[3],
-        '2133','2',$qCVar[2],$qCVar[3],
-        '2133','2',$qFVar[2],$qFVar[3],
-        '2133','2',$qTVar[3],$qTVar[4],
-        '2133','2',$qCVar[3],$qCVar[4],
-        '2133','2',$qFVar[3],$qFVar[4],
-        '2133','2',$qTVar[4],'0',
-        '2133','2',$qCVar[4],'0',
-        '2133','2',$qFVar[4],'0',
-        '2106','2',$qNVar,'1',
-        '3','0'
+        '2335','2','62',$qFVar[1]
     )
+    for ($qi = 1; $qi -lt 8; $qi++) {
+        $a = $qi; $b = $qi + 1
+        $qPop += @('2133','2',$qTVar[$a],$qTVar[$b],
+            '2133','2',$qCVar[$a],$qCVar[$b],
+            '2133','2',$qFVar[$a],$qFVar[$b])
+    }
+    $qPop += @('2133','2',$qTVar[8],'0',
+        '2133','2',$qCVar[8],'0',
+        '2133','2',$qFVar[8],'0',
+        '2106','2',$qNVar,'1',
+        '3','0')
 
     $scripts = @(
         @('wb_claim_mark', $mark),
@@ -3395,9 +3381,9 @@ function Finalize-ClaimVars([string]$modDir) {
     $vPath = Join-Path $modDir 'variables.txt'
     $names = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
     $qNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
-    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_c$i" }
-    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_f$i" }
-    for ($i = 1; $i -le 4; $i++) { $qNames += "g_wb_claim_q_t$i" }
+    for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_c$i" }
+    for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_f$i" }
+    for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_t$i" }
     $pos = @{}
     for ($i = 0; $i -lt $names.Count; $i++) { if ($qNames -contains $names[$i]) { $pos[$names[$i]] = $i } }
     if ($pos.Count -ne $qNames.Count) { throw "变量表里没有完整的宣称队列变量（$($pos.Count)/$($qNames.Count)）" }
