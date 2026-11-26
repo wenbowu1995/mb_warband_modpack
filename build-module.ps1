@@ -982,7 +982,7 @@ function Apply-Loan([string]$modDir) {
     # 消息变量占位 → 实际变量 tag
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    $msgMap = @{ '{{MSG_T}}' = 'g_wb_msg_type'; '{{MSG_L}}' = 'g_wb_msg_lord'; '{{MSG_A}}' = 'g_wb_msg_arg1' }
+    $msgMap = @{ '{{MSG_T}}' = 'g_wb_msg_type'; '{{MSG_A}}' = 'g_wb_msg_arg1' }
     foreach ($ph in $msgMap.Keys) {
         $vn = $msgMap[$ph]
         $found = -1
@@ -1902,13 +1902,10 @@ function Apply-Mentor([string]$modDir) {
     $msgTIdx = -1
     for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'g_wb_msg_type') { $msgTIdx = $i; break } }
     if ($msgTIdx -lt 0) { throw 'variables.txt 里没有 g_wb_msg_type（先跑 Apply-MsgVars）' }
-    $msgLIdx = -1
-    for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'g_wb_msg_lord') { $msgLIdx = $i; break } }
     $msgAIdx = -1
     for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'g_wb_msg_arg1') { $msgAIdx = $i; break } }
-    if ($msgLIdx -lt 0 -or $msgAIdx -lt 0) { throw 'variables.txt 里没有 g_wb_msg_lord/arg1' }
+    if ($msgAIdx -lt 0) { throw 'variables.txt 里没有 g_wb_msg_arg1' }
     $msgTag = [string](144115188075855872 + $msgTIdx)
-    $msgLord = [string](144115188075855872 + $msgLIdx)
     $msgArg = [string](144115188075855872 + $msgAIdx)
 
     # 3) scripts.txt：list / pick / tick 三个脚本
@@ -1929,7 +1926,7 @@ function Apply-Mentor([string]$modDir) {
     $def = @((Read-TextNoBom (Join-Path $pd 'script_def.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($def.Count -ne 10) { throw "mentor 脚本补丁应 10 行（5 个脚本），实际 $($def.Count)" }
     for ($i = 0; $i -lt $def.Count; $i++) {
-        $def[$i] = $def[$i].Replace('{{VAR_T}}', $varT).Replace('{{VAR_C}}', $varC).Replace('{{VAR_TOWN}}', $varM).Replace('{{EP}}', $epTag).Replace('{{MSG_T}}', $msgTag).Replace('{{MSG_L}}', $msgLord).Replace('{{MSG_A}}', $msgArg).Replace('{{NOTICE}}', $varN).Replace('{{TICKSEEN}}', $varS).Replace('{{NONE_MENU}}', $noneMenuTag).Replace('{{ACT_MENU}}', $actMenuTag)
+        $def[$i] = $def[$i].Replace('{{VAR_T}}', $varT).Replace('{{VAR_C}}', $varC).Replace('{{VAR_TOWN}}', $varM).Replace('{{EP}}', $epTag).Replace('{{MSG_T}}', $msgTag).Replace('{{MSG_A}}', $msgArg).Replace('{{NOTICE}}', $varN).Replace('{{TICKSEEN}}', $varS).Replace('{{NONE_MENU}}', $noneMenuTag).Replace('{{ACT_MENU}}', $actMenuTag)
     }
     # 传授经验比例：tick 脚本里 val_mul x 3 / 1000 → 用 params.md 的值
     for ($i = 0; $i -lt $def.Count; $i++) {
@@ -2644,7 +2641,7 @@ function Apply-MsgVars([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    $names = @('g_wb_msg_type', 'g_wb_msg_center', 'g_wb_msg_lord', 'g_wb_msg_count', 'g_wb_msg_arg1', 'g_wb_msg_arg2', 'g_wb_claim_pending_center')
+    $names = @('g_wb_msg_type', 'g_wb_msg_count', 'g_wb_msg_arg1', 'g_wb_msg_arg2', 'g_wb_claim_pending_center')
     foreach ($vn in $names) {
         $found = -1
         for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq $vn) { $found = $i; break } }
@@ -2997,7 +2994,7 @@ function Apply-Claim([string]$modDir) {
     # 消息变量由 Apply-MsgVars 统一初始化，这里只取 tag
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    $msgVars = @('g_wb_msg_type', 'g_wb_msg_center', 'g_wb_msg_lord', 'g_wb_msg_count', 'g_wb_claim_pending_center')
+    $msgVars = @('g_wb_msg_type', 'g_wb_msg_count', 'g_wb_claim_pending_center')
     $msgIdx = @{}
     foreach ($vn in $msgVars) {
         $found = -1
