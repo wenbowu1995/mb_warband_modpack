@@ -312,6 +312,20 @@ function Apply-Garrison([string]$modDir) {
     $patchLines = @((Read-TextNoBom (Join-Path $pd 'garrison_scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($patchLines.Count -ne 4) { throw "驻军脚本补丁应 4 行，实际 $($patchLines.Count)" }
     $patchLines = $patchLines -replace [regex]::Escape('{{S0}}'), [string]$s0 -replace [regex]::Escape('{{S1}}'), [string]$s1
+
+    # 驻军脚本里的变量 tag 是早期硬编码（索引 1259-1323）；后来 Apply-MsgVars 在前面插了 7 个消息变量，
+    # 导致这些 tag 实际指向 g_wb_msg_type 等变量（冲突）。这里按当前变量表末尾重映射：
+    # garrison 的 65 个变量（g_rescue_stash_count + 32 troop + 32 size）追加到变量表末尾，
+    # 脚本里的 tag 从 base 起重新编号（一次性正则替换，避免链式覆盖）。
+    $vNow = @((Read-TextNoBom $vPath) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
+    $vBase = $vNow.Count
+    $tagEv = {
+        param($m)
+        $v = [int]$m.Groups[1].Value
+        if ($v -ge 131 -and $v -le 195) { return [string]([int64]144115188075855872 + [int64]$vBase + [int64]($v - 131)) }
+        return $m.Value
+    }
+    $patchLines = @($patchLines | ForEach-Object { [regex]::Replace($_, '144115188075857(\d{3})', $tagEv) })
     $body = @($lines | Select-Object -SkipLast 1)
     $body[0] = 'scriptsfile version 1'
     $body[1] = [string]($n + 2)
