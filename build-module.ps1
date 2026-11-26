@@ -3029,6 +3029,10 @@ function Apply-Claim([string]$modDir) {
     for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'players_kingdom') { $pkIdx = $i; break } }
     if ($pkIdx -lt 0) { throw 'variables.txt 里没有 players_kingdom' }
     $varPK = [string]($TAG_VAR + $pkIdx)
+    $ctIdx = -1
+    for ($i = 0; $i -lt $varList.Count; $i++) { if ($varList[$i].Trim() -eq 'g_center_taken_by_player_faction') { $ctIdx = $i; break } }
+    if ($ctIdx -lt 0) { throw 'variables.txt 里没有 g_center_taken_by_player_faction' }
+    $varCenterTaken = [string]($TAG_VAR + $ctIdx)
     $r12 = '1224979098644774912'; $r13 = '1224979098644774913'; $r14 = '1224979098644774914'
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
     $msgTypeVar = [string]($TAG_VAR + $msgIdx['g_wb_msg_type'])
@@ -3065,6 +3069,8 @@ function Apply-Claim([string]$modDir) {
     $purgeTag   = [string]($TAG + ($n + 4))
     $qPushTag   = [string]($TAG + ($n + 5))
     $qPopTag    = [string]($TAG + ($n + 6))
+    $returnAnyTag = [string]($TAG + ($n + 7))
+    $returnOneTag = [string]($TAG + ($n + 8))
 
     $r12 = '1224979098644774912'; $r13 = '1224979098644774913'; $r14 = '1224979098644774914'
     $r15 = '1224979098644774915'; $r16 = '1224979098644774916'; $r17 = '1224979098644774917'
@@ -3266,6 +3272,62 @@ function Apply-Claim([string]$modDir) {
         '2106','2',$qNVar,'1',
         '3','0')
 
+    # 8) 玩家国王攻下城后的还城：判定（攻下的城/其附属村庄里有可归还中心，reg0 = 1/0）
+    $returnAny = @(
+        '2133','2','72057594037927936','0',
+        '6','3',$r12,$centersBegin,$centersEnd,
+        '1073741855','2',$r12,$varCenterTaken,
+        '541','3',$r12,'120',$varCenterTaken,
+        '2204','2',$r13,$r12,
+        '31','2',$r13,$varPK,
+        '521','3',$r14,$r12,'7',
+        '2147483678','2',$r14,'1',
+        '521','3',$r15,$r12,$slClaimFaction,
+        '31','2',$r15,$varPK,
+        '521','3',$r16,$r12,$slClaimLord,
+        '32','2',$r16,'0',
+        '2173','2',$r17,$r16,
+        '31','2',$r17,$r15,
+        '540','3',$r16,'2','2',
+        '2133','2','72057594037927936','1',
+        '3','0'
+    )
+
+    # 9) 归还单个中心给宣称领主（静默：不结算关系、不触发嫉妒）
+    $returnOne = @(
+        '23','2',$r12,'1',
+        '4','0',
+        '521','3',$r13,$r12,$slClaimLord,
+        '521','3',$r14,$r12,$slClaimFaction,
+        '32','2',$r13,'0',
+        '31','2',$r14,$varPK,
+        '521','3',$r15,$r12,'7',
+        '2147483678','2',$r15,'1',
+        '2173','2',$r16,$r13,
+        '31','2',$r16,$r14,
+        '540','3',$r13,'2','2',
+        '501','3',$r12,'7',$r13,
+        '2133','2',$r17,'0',
+        '4','0','541','3',$r12,'0','2',
+        '2133','2',$r17,'1',
+        '5','0','541','3',$r12,'0','3',
+        '2133','2',$r17,'1',
+        '3','0',
+        '4','0','31','2',$r17,'1',
+        '520','3','1224979098644774918',$r13,'13',
+        '32','2','1224979098644774918','0',
+        '2106','2','1224979098644774918','1080863910568919283',
+        '2105','2','1224979098644774918','1297036692682702894',
+        '1677','2',$r12,'1224979098644774918',
+        '3','0',
+        '500','3',$r13,'47','0',
+        '501','3',$r12,$slClaimLord,'0',
+        '501','3',$r12,$slClaimFaction,'0',
+        '501','3',$r12,$slPending,'0',
+        '501','3',$r12,$slPendingLord,'0',
+        '3','0'
+    )
+
     $scripts = @(
         @('wb_claim_mark', $mark),
         @('wb_claim_settle_one', $settleOne),
@@ -3273,7 +3335,9 @@ function Apply-Claim([string]$modDir) {
         @('wb_claim_peace', $peace),
         @('wb_claim_purge', $purge),
         @('wb_claim_q_push', $qPush),
-        @('wb_claim_q_pop', $qPop)
+        @('wb_claim_q_pop', $qPop),
+        @('wb_claim_return_any', $returnAny),
+        @('wb_claim_return_one', $returnOne)
     )
     # 追加脚本：名字行 + 体行（体行首 token = 语句数）
     while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = @($scLines[0..($scLines.Count - 2)]) }
@@ -3294,7 +3358,7 @@ function Apply-Claim([string]$modDir) {
     $scLines[1] = [string]($n + $scripts.Count)
     $scLines = @($scLines) + @($addRows)
     [IO.File]::WriteAllText($scPath, ((($scLines) -join "`r`n") + "`r`n"), $enc)
-    Write-ModpackLog "[claim] 追加 7 个脚本（mark/settle_one/settle/peace/purge/q_push/q_pop）"
+    Write-ModpackLog "[claim] 追加 9 个脚本（mark/settle_one/settle/peace/purge/q_push/q_pop/return_any/return_one）"
 
     # 钩子 1：aux 里 party_set_faction 之后调用 mark
     $auxIdx = -1
@@ -3379,6 +3443,41 @@ function Apply-Claim([string]$modDir) {
     $tLines[$hit] = $tLines[$hit].Replace('48.000000  56 ', '48.000000  57 ')
     [IO.File]::WriteAllText($tPath, ((($tLines) -join "`r`n") + "`r`n"), $enc)
     Write-ModpackLog '[claim] 钩子已挂：中心易手（mark）、归属落定（settle）、停战（peace）、48h 清理（purge）'
+
+    # 8) 玩家国王攻下城后的「还城」对话：封地对话 state 15 加入口，列表 state 9100
+    #    条件：中心是攻下的城或其附属村庄、当前势力 == 玩家王国、无主、宣称势力 == 玩家王国、宣称领主有效
+    $convPath = Join-Path $modDir 'conversation.txt'
+    $convLines = [IO.File]::ReadAllText($convPath, $enc) -split "\r?\n"
+    $cCount = 0
+    if (-not [int]::TryParse($convLines[1].Trim(), [ref]$cCount)) { throw 'conversation.txt 第 2 行不是对话数量' }
+    if (-not (($convLines -join "`n") -match 'wb_claim_return_pick')) {
+        $entry = 'dlga_award_fief_to_vassal:wb_claim_return_pick 69631 15  2  1 1 ' + $returnAnyTag + '  31 2 72057594037927936 1  Return_the_captured_fief_to_its_former_lord.  9100  0  NO_VOICEOVER'
+        $list = 'dlga_wb_claim_return_pick:wb_claim_return_pick 77823 9100  16  50 1 1224979098644774912  1073741855 2 1224979098644774912 ' + $varCenterTaken + '  541 3 1224979098644774912 120 ' + $varCenterTaken + '  2204 2 1224979098644774913 1224979098644774912  31 2 1224979098644774913 ' + $varPK + '  521 3 1224979098644774914 1224979098644774912 7  2147483678 2 1224979098644774914 1  521 3 1224979098644774915 1224979098644774912 235  31 2 1224979098644774915 ' + $varPK + '  521 3 1224979098644774916 1224979098644774912 234  32 2 1224979098644774916 0  2173 2 1224979098644774917 1224979098644774916  31 2 1224979098644774917 1224979098644774915  540 3 1224979098644774916 2 2  2330 2 1 1224979098644774912  2322 2 2 1224979098644774916  {s1}_(former_lord:_{s2})  9100  1  1 2 ' + $returnOneTag + '  1224979098644774912  NO_VOICEOVER'
+        $back = 'dlga_wb_claim_return_pick:award_fief_to_vassal 69631 9100  0  Distribute_the_rest_as_usual.  15  0  NO_VOICEOVER'
+        $insertAt = -1
+        for ($i = 0; $i -lt $convLines.Count; $i++) {
+            if ($convLines[$i] -like 'dlga_award_fief_to_vassal:award_fief_to_vassal_defer *') { $insertAt = $i; break }
+        }
+        if ($insertAt -lt 0) { throw 'conversation.txt 里找不到 dlga_award_fief_to_vassal:award_fief_to_vassal_defer' }
+        $convLines = @($convLines[0..($insertAt - 1)]) + @($entry, $list, $back) + @($convLines[$insertAt..($convLines.Count - 1)])
+        $convLines[1] = [string]($cCount + 3)
+        while ($convLines.Count -ge 1 -and $convLines[$convLines.Count - 1] -eq '') { $convLines = @($convLines[0..($convLines.Count - 2)]) }
+        [IO.File]::WriteAllText($convPath, ((($convLines) -join "`r`n") + "`r`n"), $enc)
+        Write-ModpackLog '[claim] 封地对话已加「还城」入口（state 15 → 9100 列表）'
+    }
+    # 中文词条
+    $dl = Join-Path $modDir 'languages\cns\dialogs.csv'
+    if (Test-Path $dl) {
+        $txt = Read-TextNoBom $dl
+        if ($txt -notmatch 'wb_claim_return_pick') {
+            $entries = @(
+                'dlga_award_fief_to_vassal:wb_claim_return_pick|把 攻 下 的 城 池 还 给 原 来 的 领 主 。',
+                'dlga_wb_claim_return_pick:wb_claim_return_pick|{s1} （原 主 ： {s2}）',
+                'dlga_wb_claim_return_pick:award_fief_to_vassal|剩 下 的 按 原 样 分 封 。'
+            )
+            Save-TextWithBom $dl ($txt.TrimEnd() + "`r`n" + ($entries -join "`r`n") + "`r`n")
+        }
+    }
 
 }
 
