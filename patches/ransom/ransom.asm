@@ -12,6 +12,7 @@
 # 遭遇时记录敌方领主（此时 g_encountered_party 一定有效；战斗结束再用就可能失效）。
 # 中心（城镇 3 / 城堡 2）取 slot_town_lord；领主部队（13）取成员里 occupation == 2 的英雄。
 : wb_ransom_encounter
+assign {{G_RANSOM_DONE}} 0
 try_begin
   gt {{G_ENCOUNTERED_PARTY}} 0
   party_is_active {{G_ENCOUNTERED_PARTY}}
@@ -61,9 +62,8 @@ end_try
 # 战斗结束时结算：玩家胜利 → 记录领主扣 {{LOSS}}%（找不到记录时用现场 party 兜底），
 # 同时算好赎金（当前金币的 {{PCT}}%，最低 {{MIN}}）供求饶对话使用，最后清空记录。
 : wb_ransom_battle_end
-assign {{G_RANSOM_OK}} 0
-assign {{G_RANSOM_AMOUNT}} 0
 try_begin
+  neq {{G_RANSOM_DONE}} 1
   eq {{G_BATTLE_RESULT}} 1
   assign :l9 {{G_RANSOM_LORD}}
   assign reg0 {{G_BATTLE_RESULT}}
@@ -145,5 +145,6 @@ try_begin
   assign reg2 {{G_RANSOM_OK}}
   assign reg3 {{G_RANSOM_AMOUNT}}
   display_message {{DBG_CALC}}
+  assign {{G_RANSOM_DONE}} 1
 end_try
 assign {{G_RANSOM_LORD}} -1
