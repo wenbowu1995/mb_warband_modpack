@@ -2774,11 +2774,19 @@ function Apply-Ransom([string]$modDir) {
     }
     if ($anchor -lt 0) { throw 'conversation.txt 里找不到 dlga_defeat_lord_answer:defeat_lord_answer_2（放走选项）' }
     $dAdd = @((Read-TextNoBom (Join-Path $pd 'dialogs_add.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
-    if ($dAdd.Count -ne 2) { throw "领主赎金对话补丁应 2 行，实际 $($dAdd.Count)" }
-    $dAdd = $dAdd -replace [regex]::Escape('{{AMOUNT}}'), $varAmount -replace [regex]::Escape('{{OK}}'), $varOk -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag
+    if ($dAdd.Count -ne 4) { throw "领主赎金对话补丁应 4 行（求饶 + 放人各 2 行），实际 $($dAdd.Count)" }
+    $dAdd = $dAdd -replace [regex]::Escape('{{AMOUNT}}'), $varAmount -replace [regex]::Escape('{{OK}}'), $varOk -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold
     if (($dAdd -join "`n") -match '\{\{') { throw '领主赎金对话还有未替换的占位符' }
-    $convBody = @($convBody[0..($anchor - 1)]) + $dAdd + @($convBody[$anchor..($convBody.Count - 1)])
-    $convBody[1] = [string]($cCount + $dAdd.Count)
+    # 求饶对话（defeat_lord_answer_2 之前）2 行
+    $convBody = @($convBody[0..($anchor - 1)]) + @($dAdd[0], $dAdd[1]) + @($convBody[$anchor..($convBody.Count - 1)])
+    # 放人对话（freed_lord_answer_2 之前）2 行：攻城/战斗胜利后释放已俘领主时走这里
+    $anchor2 = -1
+    for ($i = 2; $i -lt $convBody.Count; $i++) {
+        if ($convBody[$i] -match '^dlga_freed_lord_answer:freed_lord_answer_2\s') { $anchor2 = $i; break }
+    }
+    if ($anchor2 -lt 0) { throw 'conversation.txt 里找不到 dlga_freed_lord_answer:freed_lord_answer_2（放人选项）' }
+    $convBody = @($convBody[0..($anchor2 - 1)]) + @($dAdd[2], $dAdd[3]) + @($convBody[$anchor2..($convBody.Count - 1)])
+    $convBody[1] = [string]($cCount + 4)
     [IO.File]::WriteAllText($convPath, ((($convBody -join "`r`n")) + "`r`n"), $enc)
 
     # 中文
