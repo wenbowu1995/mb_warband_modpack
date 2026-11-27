@@ -2717,7 +2717,7 @@ function Apply-Ransom([string]$modDir) {
     }
     foreach ($dn in $dbgNames) { if (-not $dbgTag.ContainsKey($dn)) { throw "缺少调试串 $dn" } }
 
-    # ---- 脚本（遭遇时记录领主；战斗结束时扣款并预算赎金）----
+    # ---- 领主重建队伍时扣 lossPct%（48h 触发器里 create_kingdom_hero_party 调用前）----
     $scPath = Join-Path $modDir 'scripts.txt'
     $scLines = [IO.File]::ReadAllText($scPath, $enc) -split "\r?\n"
     $n = 0
@@ -2727,29 +2727,41 @@ function Apply-Ransom([string]$modDir) {
         $nm = ($scLines[2 + 2 * $i].Trim() -split '\s+')[0]
         if ($nm) { $idxOf[$nm] = $i }
     }
-    foreach ($need in @('troop_add_gold', 'add_log_entry', 'game_event_battle_end')) {
+    foreach ($need in @('troop_add_gold', 'add_log_entry', 'create_kingdom_hero_party')) {
         if (-not $idxOf.ContainsKey($need)) { throw "缺少脚本 $need（领主赎金需要它）" }
     }
-    if ($idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
     $addGoldTag = [string]($TAG_SCRIPT + $idxOf['troop_add_gold'])
     $logTag     = [string]($TAG_SCRIPT + $idxOf['add_log_entry'])
+    $createTag  = [string]($TAG_SCRIPT + $idxOf['create_kingdom_hero_party'])
 
-    $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
-    if ($body.Count -ne 2) { throw "ransom/scripts.txt 应为 2 行（1 个脚本 battle_end），实际 $($body.Count)" }
-    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_ENEMY_PARTY}}'), $enemyPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{G_RANSOM_DONE}}'), $varDone -replace [regex]::Escape('{{TROOP_END}}'), $troopEnd -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
-    if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
-
-    $beTag = [string]($TAG_SCRIPT + $n)
-    while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
-    $scLines[1] = [string]($n + 1)
-    $scLines += $body[0]
-    $scLines += $body[1]
-    # 战斗结束时扣款（只看战斗对手 $g_enemy_party，取不到就不扣）
-    $row = 2 + 2 * $idxOf['game_event_battle_end'] + 1
-    $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
-    $t[0] = [string]([int]$t[0] + 1)
-    $scLines[$row] = ' ' + $t[0] + ' 1 1 ' + $beTag + ' ' + (($t[1..($t.Count - 1)]) -join ' ')
-    [IO.File]::WriteAllText($scPath, (($scLines -join "`r`n") + "`r`n"), $enc)
+    $trigPath = Join-Path $modDir 'simple_triggers.txt'
+    $trigRows = [IO.File]::ReadAllText($trigPath, $enc) -split "\r?\n"
+    $hit = -1
+    for ($i = 2; $i -lt $trigRows.Count; $i++) {
+        if ($trigRows[$i] -match ('\b1 3 ' + [regex]::Escape($createTag) + ' ')) { $hit = $i; break }
+    }
+    if ($hit -lt 0) { throw 'simple_triggers 里找不到 create_kingdom_hero_party 调用（领主重建触发器）' }
+    $t = @($trigRows[$hit].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+    if (($t -join ' ') -match '500 3 1224979098644774912 11 1224979098644774917') { throw '领主重建触发器已经扣过钱了' }
+    $pos = -1
+    for ($j = 2; $j -lt $t.Count - 4; $j++) {
+        if ($t[$j] -eq '1' -and $t[$j + 1] -eq '3' -and $t[$j + 2] -eq $createTag) { $pos = $j; break }
+    }
+    if ($pos -lt 0) { throw '找不到 create_kingdom_hero_party 调用位置' }
+    # 扣款：r12 = 领主 troop，slot 11 = 财富
+    $frag = @(
+        '520', '3', '1224979098644774917', '1224979098644774912', '11',
+        '2133', '2', '1224979098644774918', '1224979098644774917',
+        '2108', '2', '1224979098644774918', '100',
+        '2107', '2', '1224979098644774918', [string]$lossPct,
+        '2106', '2', '1224979098644774917', '1224979098644774918',
+        '500', '3', '1224979098644774912', '11', '1224979098644774917'
+    )
+    $newT = @($t[0..($pos - 1)]) + $frag + @($t[$pos..($t.Count - 1)])
+    $newT[1] = [string]([int]$newT[1] + 6)
+    $trigRows[$hit] = ' ' + ($newT -join ' ')
+    while ($trigRows.Count -ge 1 -and $trigRows[$trigRows.Count - 1] -eq '') { $trigRows = $trigRows[0..($trigRows.Count - 2)] }
+    [IO.File]::WriteAllText($trigPath, (($trigRows -join "`r`n") + "`r`n"), $enc)
 
     # ---- 对话（赎金选项插在「放你走」之前；条件只读预计算变量）----
     $convPath = Join-Path $modDir 'conversation.txt'
