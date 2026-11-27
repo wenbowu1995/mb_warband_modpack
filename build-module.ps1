@@ -2676,6 +2676,7 @@ function Apply-Ransom([string]$modDir) {
     if ([array]::IndexOf($varList, 'g_battle_result') -lt 0 -or [array]::IndexOf($varList, 'g_encountered_party') -lt 0) { throw '缺少 g_battle_result / g_encountered_party 变量（领主赎金需要）' }
     $battleResultTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_battle_result'))
     $encPartyTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_encountered_party'))
+    $enemyPartyTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_enemy_party'))
     $varLord = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_lord'))
     $varAmount = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_amount'))
     $varOk = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_ok'))
@@ -2726,35 +2727,24 @@ function Apply-Ransom([string]$modDir) {
         $nm = ($scLines[2 + 2 * $i].Trim() -split '\s+')[0]
         if ($nm) { $idxOf[$nm] = $i }
     }
-    foreach ($need in @('troop_add_gold', 'add_log_entry', 'game_event_party_encounter', 'game_event_battle_end')) {
+    foreach ($need in @('troop_add_gold', 'add_log_entry', 'game_event_battle_end')) {
         if (-not $idxOf.ContainsKey($need)) { throw "缺少脚本 $need（领主赎金需要它）" }
     }
-    if ($idxOf.ContainsKey('wb_ransom_encounter') -or $idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
+    if ($idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
     $addGoldTag = [string]($TAG_SCRIPT + $idxOf['troop_add_gold'])
     $logTag     = [string]($TAG_SCRIPT + $idxOf['add_log_entry'])
 
     $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
-    if ($body.Count -ne 4) { throw "ransom/scripts.txt 应为 4 行（2 个脚本：encounter + battle_end），实际 $($body.Count)" }
-    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{G_RANSOM_DONE}}'), $varDone -replace [regex]::Escape('{{TROOP_END}}'), $troopEnd -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
+    if ($body.Count -ne 2) { throw "ransom/scripts.txt 应为 2 行（1 个脚本 battle_end），实际 $($body.Count)" }
+    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_ENEMY_PARTY}}'), $enemyPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{G_RANSOM_DONE}}'), $varDone -replace [regex]::Escape('{{TROOP_END}}'), $troopEnd -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
     if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
 
-    $encTag = [string]($TAG_SCRIPT + $n)
-    $beTag = [string]($TAG_SCRIPT + $n + 1)
+    $beTag = [string]($TAG_SCRIPT + $n)
     while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
-    $scLines[1] = [string]($n + 2)
+    $scLines[1] = [string]($n + 1)
     $scLines += $body[0]
     $scLines += $body[1]
-    $scLines += $body[2]
-    $scLines += $body[3]
-    # 遭遇时记录敌方领主：原生第一条语句是「store_script_param 1 → $g_encountered_party」，
-    # 必须插在它之后，否则读到的还是上一次的值（实测记录不到领主 → 不扣钱/无选项）。
-    $row = 2 + 2 * $idxOf['game_event_party_encounter'] + 1
-    $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
-    if ($t.Count -lt 5 -or $t[1] -ne '21' -or $t[2] -ne '1') { throw 'game_event_party_encounter 体行结构变了（期望首条 store_script_param 1 → g_encountered_party）' }
-    $t[0] = [string]([int]$t[0] + 1)
-    $newT = @($t[0], $t[1], $t[2], $t[3], '1', '1', $encTag) + @($t[4..($t.Count - 1)])
-    $scLines[$row] = ' ' + ($newT -join ' ')
-    # 战斗结束时扣款 + 预计算赎金
+    # 战斗结束时扣款（只看战斗对手 $g_enemy_party，取不到就不扣）
     $row = 2 + 2 * $idxOf['game_event_battle_end'] + 1
     $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
     $t[0] = [string]([int]$t[0] + 1)
