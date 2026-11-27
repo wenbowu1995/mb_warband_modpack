@@ -292,7 +292,10 @@ val_mul reg0 1000
 else_try_begin
 eq :l1 1
 eq :l2 13
+# 身甲评分 = 身体护甲 + 该甲自带的腿部护甲（部分身甲覆盖腿部，如板甲类）
 item_get_body_armor reg0 :l0
+item_get_leg_armor :l4 :l0
+val_add reg0 :l4
 val_mul reg0 1000
 else_try_begin
 eq :l1 2
