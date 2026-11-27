@@ -3013,6 +3013,7 @@ function Apply-Claim([string]$modDir) {
     $TAG_VAR = [int64]144115188075855872
     # 宣称消息队列变量（type/center/faction/lord 各 8 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
     $qVarNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
+    $qVarNames += 'g_wb_claim_return_center'
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
@@ -3040,6 +3041,7 @@ function Apply-Claim([string]$modDir) {
     # 队列变量 tag
     $qNVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_n'])
     $qTypeVar = [string]($TAG_VAR + $qIdx['g_wb_claim_q_type'])
+    $returnCenterVar = [string]($TAG_VAR + $qIdx['g_wb_claim_return_center'])
     $qCVar = @{}; $qFVar = @{}; $qTVar = @{}; $qLVar = @{}
     for ($qi = 1; $qi -le 8; $qi++) {
         $qCVar[$qi] = [string]($TAG_VAR + $qIdx["g_wb_claim_q_c$qi"])
@@ -3278,8 +3280,6 @@ function Apply-Claim([string]$modDir) {
         '6','3',$r12,$centersBegin,$centersEnd,
         '1073741855','2',$r12,$varCenterTaken,
         '541','3',$r12,'120',$varCenterTaken,
-        '2204','2',$r13,$r12,
-        '31','2',$r13,$varPK,
         '521','3',$r14,$r12,'7',
         '2147483678','2',$r14,'1',
         '521','3',$r15,$r12,$slClaimFaction,
@@ -3307,6 +3307,7 @@ function Apply-Claim([string]$modDir) {
         '31','2',$r16,$r14,
         '540','3',$r13,'2','2',
         '501','3',$r12,'7',$r13,
+        '1620','2',$r12,$varPK,
         '2133','2',$r17,'0',
         '4','0','541','3',$r12,'0','2',
         '2133','2',$r17,'1',
@@ -3451,19 +3452,35 @@ function Apply-Claim([string]$modDir) {
     $cCount = 0
     if (-not [int]::TryParse($convLines[1].Trim(), [ref]$cCount)) { throw 'conversation.txt 第 2 行不是对话数量' }
     if (-not (($convLines -join "`n") -match 'wb_claim_return_pick')) {
-        $entry = 'dlga_award_fief_to_vassal:wb_claim_return_pick 69631 15  2  1 1 ' + $returnAnyTag + '  31 2 72057594037927936 1  Return_the_captured_fief_to_its_former_lord.  9100  0  NO_VOICEOVER'
-        $list = 'dlga_wb_claim_return_pick:wb_claim_return_pick 77823 9100  16  50 1 1224979098644774912  1073741855 2 1224979098644774912 ' + $varCenterTaken + '  541 3 1224979098644774912 120 ' + $varCenterTaken + '  2204 2 1224979098644774913 1224979098644774912  31 2 1224979098644774913 ' + $varPK + '  521 3 1224979098644774914 1224979098644774912 7  2147483678 2 1224979098644774914 1  521 3 1224979098644774915 1224979098644774912 235  31 2 1224979098644774915 ' + $varPK + '  521 3 1224979098644774916 1224979098644774912 234  32 2 1224979098644774916 0  2173 2 1224979098644774917 1224979098644774916  31 2 1224979098644774917 1224979098644774915  540 3 1224979098644774916 2 2  2330 2 1 1224979098644774912  2322 2 2 1224979098644774916  {s1}_(former_lord:_{s2})  9100  1  1 2 ' + $returnOneTag + '  1224979098644774912  NO_VOICEOVER'
-        $back = 'dlga_wb_claim_return_pick:award_fief_to_vassal 69631 9100  0  Distribute_the_rest_as_usual.  15  0  NO_VOICEOVER'
+        $entry = 'dlga_award_fief_to_vassal:wb_claim_return_pick 69631 15  2  1 2 ' + $returnAnyTag + ' 0  31 2 72057594037927936 1  Return_the_captured_fief_to_its_former_lord.  9100  0  NO_VOICEOVER'
+        $text = 'dlga_wb_claim_return_pick:wb_claim_return_list 4095 9100  0  Which_holding_should_be_returned_to_its_former_lord?  9101  0  NO_VOICEOVER'
+        $list = 'dlga_wb_claim_return_list:wb_claim_return_one 77823 9101  14  50 1 1224979098644774912  1073741855 2 1224979098644774912 ' + $varCenterTaken + '  541 3 1224979098644774912 120 ' + $varCenterTaken + '  521 3 1224979098644774914 1224979098644774912 7  2147483678 2 1224979098644774914 1  521 3 1224979098644774915 1224979098644774912 235  31 2 1224979098644774915 ' + $varPK + '  521 3 1224979098644774916 1224979098644774912 234  32 2 1224979098644774916 0  2173 2 1224979098644774917 1224979098644774916  31 2 1224979098644774917 1224979098644774915  540 3 1224979098644774916 2 2  2330 2 1 1224979098644774912  2322 2 2 1224979098644774916  {s1}_(former_lord:_{s2})  9100  2  50 1 ' + $returnCenterVar + '  1 2 ' + $returnOneTag + ' ' + $returnCenterVar + '  NO_VOICEOVER'
+        $backActs = @(
+            '2133','2','1224979098644774912',$varCenterTaken,
+            '521','3','1224979098644774913','1224979098644774912','7',
+            '4','0',
+            '32','2','1224979098644774913','0',
+            '2133','2',$varCenterTaken,'-1',
+            '5','0',
+            '4','0',
+            '542','3',$varPK,'64','-1',
+            '502','3',$varPK,'64','1224979098644774912',
+            '3','0',
+            '1','4','936748722493063398','1224979098644774912','-1','0',
+            '2133','2',$varCenterTaken,'-1',
+            '3','0'
+        )
+        $back = 'dlga_wb_claim_return_list:close_window 69631 9101  0  All_done.  6  13  ' + ($backActs -join ' ') + '  NO_VOICEOVER'
         $insertAt = -1
         for ($i = 0; $i -lt $convLines.Count; $i++) {
             if ($convLines[$i] -like 'dlga_award_fief_to_vassal:award_fief_to_vassal_defer *') { $insertAt = $i; break }
         }
         if ($insertAt -lt 0) { throw 'conversation.txt 里找不到 dlga_award_fief_to_vassal:award_fief_to_vassal_defer' }
-        $convLines = @($convLines[0..($insertAt - 1)]) + @($entry, $list, $back) + @($convLines[$insertAt..($convLines.Count - 1)])
-        $convLines[1] = [string]($cCount + 3)
+        $convLines = @($convLines[0..($insertAt - 1)]) + @($entry, $text, $list, $back) + @($convLines[$insertAt..($convLines.Count - 1)])
+        $convLines[1] = [string]($cCount + 4)
         while ($convLines.Count -ge 1 -and $convLines[$convLines.Count - 1] -eq '') { $convLines = @($convLines[0..($convLines.Count - 2)]) }
         [IO.File]::WriteAllText($convPath, ((($convLines) -join "`r`n") + "`r`n"), $enc)
-        Write-ModpackLog '[claim] 封地对话已加「还城」入口（state 15 → 9100 列表）'
+        Write-ModpackLog '[claim] 封地对话已加「还城」入口（state 15 → 9100 文本 → 9101 列表）'
     }
     # 中文词条
     $dl = Join-Path $modDir 'languages\cns\dialogs.csv'
@@ -3472,8 +3489,9 @@ function Apply-Claim([string]$modDir) {
         if ($txt -notmatch 'wb_claim_return_pick') {
             $entries = @(
                 'dlga_award_fief_to_vassal:wb_claim_return_pick|把 攻 下 的 城 池 还 给 原 来 的 领 主 。',
-                'dlga_wb_claim_return_pick:wb_claim_return_pick|{s1} （原 主 ： {s2}）',
-                'dlga_wb_claim_return_pick:award_fief_to_vassal|剩 下 的 按 原 样 分 封 。'
+                'dlga_wb_claim_return_pick:wb_claim_return_list|要 把 哪 一 处 领 地 还 给 原 来 的 领 主 ？',
+                'dlga_wb_claim_return_list:wb_claim_return_one|{s1} （原 主 ： {s2}）',
+                'dlga_wb_claim_return_list:close_window|都 处 理 完 了 。'
             )
             Save-TextWithBom $dl ($txt.TrimEnd() + "`r`n" + ($entries -join "`r`n") + "`r`n")
         }
@@ -3494,6 +3512,7 @@ function Finalize-ClaimVars([string]$modDir) {
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_f$i" }
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_t$i" }
     for ($i = 1; $i -le 8; $i++) { $qNames += "g_wb_claim_q_l$i" }
+    $qNames += 'g_wb_claim_return_center'
     $pos = @{}
     for ($i = 0; $i -lt $names.Count; $i++) { if ($qNames -contains $names[$i]) { $pos[$names[$i]] = $i } }
     if ($pos.Count -ne $qNames.Count) { throw "变量表里没有完整的宣称队列变量（$($pos.Count)/$($qNames.Count)）" }
