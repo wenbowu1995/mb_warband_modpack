@@ -2663,13 +2663,7 @@ function Apply-Ransom([string]$modDir) {
     if ($ransomPct -lt 1 -or $ransomPct -gt 100) { throw "赎金比例超出 1-100：$ransomPct" }
     if ($minGold -lt 1) { throw "赎金下限必须 ≥1：$minGold" }
 
-    # 变量：早期版本用过的 4 个（不再参与逻辑），保留在变量表末尾只为「变量只增不删」的旧存档兼容
-    $vPath = Join-Path $modDir 'variables.txt'
-    $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    foreach ($vn in @('g_wb_ransom_lord', 'g_wb_ransom_amount', 'g_wb_ransom_ok', 'g_wb_ransom_done')) {
-        if (-not ($varList -contains $vn)) { $varList += $vn }
-    }
-    [IO.File]::WriteAllText($vPath, (($varList -join "`r`n") + "`r`n"), $enc)
+    # 本功能不新增变量（早期版本的 4 个 g_wb_ransom_* 已删除；用户用原版存档覆盖，不需要变量兼容）
 
     # ---- 领主重建队伍时扣 lossPct%（48h 触发器里 create_kingdom_hero_party 调用前）----
     $scPath = Join-Path $modDir 'scripts.txt'
