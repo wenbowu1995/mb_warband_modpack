@@ -587,7 +587,7 @@ function Apply-Patrol([string]$modDir) {
 
     # 参数（params.md 巡逻队参数表）
     $md = Read-TextNoBom (Join-Path $PSScriptRoot 'params.md')
-    $cost = 5000; $garrisonRecruit = 50; $refill = 20; $threshold = 20; $slotCenter = 238; $wage = 10; $wageHour = 168; $vrCost = 10; $vrDebug = 0
+    $cost = 5000; $garrisonRecruit = 50; $refill = 20; $threshold = 20; $slotCenter = 238; $wage = 10; $wageHour = 168; $vrCost = 10
     $patrolRadius = 5; $pursueDist = 5400
     foreach ($line in ($md -split "\r?\n")) {
         if ($line -match '^\|\s*巡逻队招募花费\s*\|\s*(\d+)\s*\|') { $cost = [int]$Matches[1] }
@@ -600,7 +600,6 @@ function Apply-Patrol([string]$modDir) {
         if ($line -match '^\|\s*巡逻队巡逻半径\s*\|\s*(\d+)\s*\|') { $patrolRadius = [int]$Matches[1] }
         if ($line -match '^\|\s*巡逻队追击距离\s*\|\s*(\d+)\s*\|') { $pursueDist = [int]$Matches[1] }
         if ($line -match '^\|\s*村庄征募每名费用\s*\|\s*(\d+)\s*\|') { $vrCost = [int]$Matches[1] }
-        if ($line -match '^\|\s*村庄征募调试\s*\|\s*(\d+)\s*\|') { $vrDebug = [int]$Matches[1] }
     }
 
     # 消息变量（g_wb_msg_type / g_wb_msg_arg1，由 Apply-MsgVars 建好，Lua 显示巡逻队工资）
@@ -654,34 +653,22 @@ function Apply-Patrol([string]$modDir) {
     $QSTR_TAG = [uint64]1585267068834414592
     $qNameId = [string]($QSTR_TAG + [uint64]$qn)
     $qJoinId = [string]($QSTR_TAG + [uint64]($qn + 1))
-    $qDbgId = [string]($QSTR_TAG + [uint64]($qn + 2))
-    $qVrTitleId = [string]($QSTR_TAG + [uint64]($qn + 3))
-    $qVrLineId = [string]($QSTR_TAG + [uint64]($qn + 4))
-    $qVrConfirmId = [string]($QSTR_TAG + [uint64]($qn + 5))
-    $qVrNoneId = [string]($QSTR_TAG + [uint64]($qn + 6))
-    $qVrNofitId = [string]($QSTR_TAG + [uint64]($qn + 7))
-    $qVrLastId = [string]($QSTR_TAG + [uint64]($qn + 8))
-    $qVrSkipRaidedId = [string]($QSTR_TAG + [uint64]($qn + 9))
-    $qVrSkipLootedId = [string]($QSTR_TAG + [uint64]($qn + 10))
-    $qVrSkipBanditId = [string]($QSTR_TAG + [uint64]($qn + 11))
-    $qVrSkipNoneId = [string]($QSTR_TAG + [uint64]($qn + 12))
-    $qVrSkipTroopId = [string]($QSTR_TAG + [uint64]($qn + 13))
-    $qRows[0] = [string]($qn + 14)
+    $qVrTitleId = [string]($QSTR_TAG + [uint64]($qn + 2))
+    $qVrLineId = [string]($QSTR_TAG + [uint64]($qn + 3))
+    $qVrConfirmId = [string]($QSTR_TAG + [uint64]($qn + 4))
+    $qVrNoneId = [string]($QSTR_TAG + [uint64]($qn + 5))
+    $qVrNofitId = [string]($QSTR_TAG + [uint64]($qn + 6))
+    $qVrLastId = [string]($QSTR_TAG + [uint64]($qn + 7))
+    $qRows[0] = [string]($qn + 8)
     $qBody = @($qRows | Select-Object -SkipLast 1)
     $qBody += 'qstr_wb_patrol_name Patrol'
     $qBody += 'qstr_wb_patrol_join {s1}{s2}'
-    $qBody += 'qstr_wb_wage_dbg patrol_wage:_{reg1}'
     $qBody += ('qstr_wb_vr_title Recruit_volunteers_from_the_villages_of_{s0}._' + [string]$vrCost + '_denars_per_man.')
     $qBody += 'qstr_wb_vr_line {s0}:_{reg5}_{s10}_({reg6}_denars)'
     $qBody += 'qstr_wb_vr_confirm {s0}_can_send_{reg5}_{s10}_to_follow_you_({reg6}_denars).'
     $qBody += 'qstr_wb_vr_none No_volunteers_in_this_village_right_now.'
     $qBody += 'qstr_wb_vr_nofit Your_party_is_full_or_you_lack_denars.'
     $qBody += 'qstr_wb_vr_last ^^{reg5}_volunteers_joined_your_party.'
-    $qBody += 'qstr_wb_vr_skip_raided {s1}^{s0}:_{raided,_cannot_recruit}.'
-    $qBody += 'qstr_wb_vr_skip_looted {s1}^{s0}:_{looted,_cannot_recruit}.'
-    $qBody += 'qstr_wb_vr_skip_bandit {s1}^{s0}:_{bandits,_cannot_recruit}.'
-    $qBody += 'qstr_wb_vr_skip_none {s1}^{s0}:_{no_volunteers}_{reg5}.'
-    $qBody += 'qstr_wb_vr_skip_troop {s1}^{s0}:_{invalid_volunteer_troop}.'
     [IO.File]::WriteAllText($qPath, ((($qBody -join "`r`n")) + "`r`n"), $enc)
 
     # 3) scripts.txt 追加 5 个脚本（替换占位符）
@@ -716,19 +703,12 @@ function Apply-Patrol([string]$modDir) {
         '{{PT_PATROL}}' = $ptTag
         '{{QSTR_PATROL_NAME}}' = $qNameId
         '{{QSTR_PATROL_JOIN}}' = $qJoinId
-        '{{QSTR_WAGE_DBG}}' = $qDbgId
         '{{QSTR_VR_TITLE}}' = $qVrTitleId
         '{{QSTR_VR_LINE}}' = $qVrLineId
         '{{QSTR_VR_CONFIRM}}' = $qVrConfirmId
         '{{QSTR_VR_NONE}}' = $qVrNoneId
         '{{QSTR_VR_NOFIT}}' = $qVrNofitId
         '{{QSTR_VR_LAST}}' = $qVrLastId
-        '{{QSTR_VR_SKIP_RAIDED}}' = $qVrSkipRaidedId
-        '{{QSTR_VR_SKIP_LOOTED}}' = $qVrSkipLootedId
-        '{{QSTR_VR_SKIP_BANDIT}}' = $qVrSkipBanditId
-        '{{QSTR_VR_SKIP_NONE}}' = $qVrSkipNoneId
-        '{{QSTR_VR_SKIP_TROOP}}' = $qVrSkipTroopId
-        '{{VR_DEBUG}}' = [string]$vrDebug
         '{{SCRIPT_TAKE_TROOPS}}' = $tagOf['wb_patrol_take_troops']
         '{{SCRIPT_CALC_STRENGTH}}' = $calcTag
         '{{SCRIPT_COMPANION_LIMIT}}' = $limitTag
@@ -924,12 +904,7 @@ function Apply-Patrol([string]$modDir) {
                 'qstr_wb_vr_confirm|{s0} 可 派 {reg5} 名 {s10} 跟 随 你 ， 费 用 {reg6} 第纳尔 。',
                 'qstr_wb_vr_none|这 个 村 庄 暂 无 可 征 募 的 士 兵 。',
                 'qstr_wb_vr_nofit|你 的 队 伍 已 满 或 第 纳 尔 不 足 。',
-                'qstr_wb_vr_last|^^{reg5} 名 村 民 加 入 了 你 的 队 伍 。',
-                'qstr_wb_vr_skip_raided|{s1}^{s0}：正 被 袭 掠 ， 无 法 征 募 。',
-                'qstr_wb_vr_skip_looted|{s1}^{s0}：已 被 掠 夺 ， 无 法 征 募 。',
-                'qstr_wb_vr_skip_bandit|{s1}^{s0}：有 强 盗 盘 踞 ， 无 法 征 募 。',
-                'qstr_wb_vr_skip_none|{s1}^{s0}：本 日 无 志 愿 兵 （ 数 量 {reg5} ） 。',
-                'qstr_wb_vr_skip_troop|{s1}^{s0}：志 愿 兵 兵 种 异 常 。'
+                'qstr_wb_vr_last|^^{reg5} 名 村 民 加 入 了 你 的 队 伍 。'
             )
             Save-TextWithBom $qs ($t3.TrimEnd() + "`r`n" + ($addQ -join "`r`n") + "`r`n")
         }
@@ -2151,7 +2126,7 @@ function Reorder-AppendStrings([string]$modDir) {
     }
     if ($start -lt 0) { return }
     $append = @($rows[$start..($rows.Count - 1)])
-    # WSE2 加载不了追加区的末尾/后段字符串：把「显示用」的字符串前置，把纯调试串挪到最后
+    # WSE2 加载不了追加区的末尾/后段字符串：把「显示用」的字符串前置，其余字符串后移
     $moveNames = @()
     $frontNames = @('str_detail_relation_suffix', 'str_detail_king_relation')
     $front = @(); $keep = @(); $moved = @()
@@ -2252,7 +2227,7 @@ function Apply-Luck([string]$modDir) {
     $msgTag = [string]([int64]144115188075855872 + [int64]$msgTIdx)
     $msgArg = [string]([int64]144115188075855872 + [int64]$msgAIdx)
 
-    # 2) 字符串：11 条（宴会等级 6 + 供奉完成/开始 + 夜袭/潜入躲过 + 潜入测试）
+    # 2) 字符串：仅宴会档位名 6 条（供奉/夜袭/潜入等提示走 Lua 消息变量）
     $sPath = Join-Path $modDir 'strings.txt'
     $sLines = [IO.File]::ReadAllText($sPath, $enc) -split "\r?\n"
     while ($sLines.Count -ge 1 -and $sLines[$sLines.Count - 1] -eq '') { $sLines = @($sLines[0..($sLines.Count - 2)]) }
@@ -2326,7 +2301,7 @@ function Apply-Luck([string]$modDir) {
     $scBody += $def
     [IO.File]::WriteAllText($scPath, ((($scBody) -join "`r`n") + "`r`n"), $enc)
 
-    # 3d) 潜入：mno_town_sneak 失败分支插入二次幸运判定（含临时测试提示）
+    # 3d) 潜入：mno_town_sneak 失败分支插入二次幸运判定
     $mPath = Join-Path $modDir 'menus.txt'
     $mLines = [IO.File]::ReadAllText($mPath, $enc) -split "\r?\n"
     $menuIdx = @{}
@@ -2985,23 +2960,22 @@ function Apply-Drill([string]$modDir) {
     $pd = Join-Path $PSScriptRoot 'patches\drill'
     $enc = [Text.Encoding]::GetEncoding(28591)
 
-    # 变量：g_wb_drill_pending（待归队）、g_wb_outland_faction（派出目标国）、g_wb_outland_last（调试去重）
+    # 变量：g_wb_drill_pending（待归队）、g_wb_outland_faction（派出目标国）
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-    foreach ($vn in @('g_wb_drill_pending', 'g_wb_outland_faction', 'g_wb_outland_last')) {
+    foreach ($vn in @('g_wb_drill_pending', 'g_wb_outland_faction')) {
         if (-not ($varList -contains $vn)) { $varList += $vn }
     }
     [IO.File]::WriteAllText($vPath, (($varList -join "`r`n") + "`r`n"), $enc)
     $idx = @{}
     for ($i = 0; $i -lt $varList.Count; $i++) { $idx[$varList[$i].Trim()] = $i }
-    foreach ($need in @('players_kingdom', 'g_leave_encounter', 'g_wb_drill_pending', 'g_wb_outland_faction', 'g_wb_outland_last', 'g_wb_msg_type', 'g_wb_msg_arg1', 'g_wb_msg_arg2')) {
+    foreach ($need in @('players_kingdom', 'g_leave_encounter', 'g_wb_drill_pending', 'g_wb_outland_faction', 'g_wb_msg_type', 'g_wb_msg_arg1', 'g_wb_msg_arg2')) {
         if (-not $idx.ContainsKey($need)) { throw "variables.txt 里没有 $need（版本可能变了）" }
     }
     $varPK = [string]([int64]144115188075855872 + $idx['players_kingdom'])
     $varLeave = [string]([int64]144115188075855872 + $idx['g_leave_encounter'])
     $varPending = [string]([int64]144115188075855872 + $idx['g_wb_drill_pending'])
     $varOutland = [string]([int64]144115188075855872 + $idx['g_wb_outland_faction'])
-    $varOutLast = [string]([int64]144115188075855872 + $idx['g_wb_outland_last'])
     $varMsgT = [string]([int64]144115188075855872 + $idx['g_wb_msg_type'])
     $varMsgA = [string]([int64]144115188075855872 + $idx['g_wb_msg_arg1'])
     $varMsgA2 = [string]([int64]144115188075855872 + $idx['g_wb_msg_arg2'])
@@ -3043,7 +3017,7 @@ function Apply-Drill([string]$modDir) {
     $finTag = [string]($TAG_SCRIPT + $n + 2)
     $sendTag = [string]($TAG_SCRIPT + $n + 3)
     $probeTag = [string]($TAG_SCRIPT + $n + 4)
-    $body = $body -replace '\{\{PLAYERS_KINGDOM\}\}', $varPK -replace '\{\{DRILL_PENDING\}\}', $varPending -replace '\{\{DRILL_RETURN\}\}', $retTag -replace '\{\{WB_MSG_TYPE\}\}', $varMsgT -replace '\{\{WB_MSG_ARG1\}\}', $varMsgA -replace '\{\{WB_MSG_ARG2\}\}', $varMsgA2 -replace '\{\{REL_CHG\}\}', $relTag -replace '\{\{CREATE_HERO\}\}', $createTag -replace '\{\{OUT_LAST\}\}', $varOutLast
+    $body = $body -replace '\{\{PLAYERS_KINGDOM\}\}', $varPK -replace '\{\{DRILL_PENDING\}\}', $varPending -replace '\{\{DRILL_RETURN\}\}', $retTag -replace '\{\{WB_MSG_TYPE\}\}', $varMsgT -replace '\{\{WB_MSG_ARG1\}\}', $varMsgA -replace '\{\{WB_MSG_ARG2\}\}', $varMsgA2 -replace '\{\{REL_CHG\}\}', $relTag -replace '\{\{CREATE_HERO\}\}', $createTag
     if (($body -join "`n") -match '\{\{') { throw '历练脚本还有未替换的占位符' }
     while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
     $scLines[1] = [string]($n + 5)
@@ -3099,16 +3073,11 @@ function Apply-Claim([string]$modDir) {
     $n = 0
     if (-not [int]::TryParse($scLines[1].Trim(), [ref]$n)) { throw 'scripts.txt 第 2 行不是数量' }
 
-    # 参数：宣称调试提示（1 = 写入消息变量，由 Lua 统一显示）
+    # 参数：宣称消息提示（1 = 写入消息变量，由 Lua 统一显示；0 = 不显示）
     $md = Read-TextNoBom (Join-Path $PSScriptRoot 'params.md')
     $dbg = 1
     foreach ($ln in ($md -split "\r?\n")) {
-        if ($ln -match '^\|\s*宣称调试提示\s*\|\s*(\d+)\s*\|') { $dbg = [int]$Matches[1] }
-    }
-    # 参数：宣称队列调试（1 = 每次攻占重复入队 3 条，验证队列逐条显示）
-    $qdbg = 1
-    foreach ($ln in ($md -split "\r?\n")) {
-        if ($ln -match '^\|\s*宣称队列调试\s*\|\s*(\d+)\s*\|') { $qdbg = [int]$Matches[1] }
+        if ($ln -match '^\|\s*宣称消息提示\s*\|\s*(\d+)\s*\|') { $dbg = [int]$Matches[1] }
     }
     # 消息变量由 Apply-MsgVars 统一初始化，这里只取 tag
     $vPath = Join-Path $modDir 'variables.txt'
@@ -3226,10 +3195,6 @@ function Apply-Claim([string]$modDir) {
     if ($dbg -eq 1) {
         # 攻占消息入队（type 1），由 Lua 每帧逐条取出显示，避免同帧多条互相覆盖
         $mark += @('1','5',$qPushTag,'1',$r12,$r14,$r15)
-        if ($qdbg -eq 1) {
-            # 调试：同一条消息再多入队 2 次（共 3 条），攻城一次就能看到队列逐条打印
-            $mark += @('1','5',$qPushTag,'1',$r12,$r14,$r15,'1','5',$qPushTag,'1',$r12,$r14,$r15)
-        }
     }
     $mark += @('501','3',$r12,$slPending,'0','3','0','3','0','3','0')
 

@@ -415,7 +415,6 @@ try_for_range :l3 {{VILLAGES_BEGIN}} {{VILLAGES_END}}
 try_end
 
 # ---------- 菜单 A 初始化：正文 s1 + 按钮文本 s2..s9 ----------
-# {{VR_DEBUG}} = 1 时，不满足条件的下属村庄也会在正文里列出原因（默认 0 不显示）
 : wb_vr_list
 store_script_param :l0 1
 assign {{VAR_VR_COUNT}} 0
@@ -486,26 +485,6 @@ try_for_range :l2 {{VILLAGES_BEGIN}} {{VILLAGES_END}}
     try_end
     val_add :l1 1
     val_add {{VAR_VR_COUNT}} 1
-  else_try
-    gt {{VR_DEBUG}} 0
-    str_store_party_name s0 :l2
-    assign reg5 :l3
-    try_begin
-      eq :l7 1
-      str_store_string s1 {{QSTR_VR_SKIP_RAIDED}}
-    else_try
-      eq :l7 2
-      str_store_string s1 {{QSTR_VR_SKIP_LOOTED}}
-    else_try
-      eq :l7 3
-      str_store_string s1 {{QSTR_VR_SKIP_BANDIT}}
-    else_try
-      eq :l7 4
-      str_store_string s1 {{QSTR_VR_SKIP_NONE}}
-    else_try
-      eq :l7 5
-      str_store_string s1 {{QSTR_VR_SKIP_TROOP}}
-    try_end
   try_end
 try_end
 

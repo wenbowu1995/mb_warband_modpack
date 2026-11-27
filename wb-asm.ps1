@@ -57,13 +57,8 @@ $script:OpArity = @{
     'item_get_type' = 2; 'item_get_value' = 2; 'item_get_difficulty' = 2
     'item_get_head_armor' = 2; 'item_get_body_armor' = 2; 'item_get_leg_armor' = 2
     'item_get_weapon_length' = 2; 'item_has_property' = 2
-    # 临时测试用（血量采样）
-    'try_for_agents' = 1; 'agent_is_human' = 1; 'agent_is_alive' = 1
-    'agent_get_party_id' = 2; 'agent_get_troop_id' = 2
-    'troop_get_slot' = 3; 'troop_set_slot' = 3; 'store_agent_hit_points' = 3
-    'store_character_level' = 2
-    'display_message' = 1; 'display_log_message' = 1
     # 巡逻队系统（patrol）
+    'store_character_level' = 2
     'party_get_slot' = 3; 'party_set_slot' = 3; 'party_slot_eq' = 3
     'store_troop_faction' = 2; 'troop_slot_eq' = 3; 'faction_slot_eq' = 3
     'troop_set_note_available' = 2; 'troop_set_auto_equip' = 2

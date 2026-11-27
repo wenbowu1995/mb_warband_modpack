@@ -79,7 +79,7 @@ local function flush_message()
         show("两国缔结停战之约，" .. game.gvar.g_wb_msg_count .. " 处领土宣称就此作废。", 0x00CCFF)
     elseif t == 4 then
         local sid = game.gvar.g_wb_msg_arg1
-        local names = { [1] = "统御", [2] = "俘虏管理", [7] = "说服力", [12] = "物品管理" }
+        local names = { [1] = "统御", [2] = "俘虏管理", [7] = "说服力", [9] = "急救", [12] = "物品管理" }
         show("你向同伴讨教诀窍，渐渐摸到门道，" .. (names[sid] or "技能") .. "技能 +1。")
     elseif t == 6 then
         show(lord .. " 还清了借款，计 " .. game.gvar.g_wb_msg_arg1 .. " 第纳尔。")
@@ -124,10 +124,6 @@ local function flush_message()
         show("归队暂缓：" .. lord .. " 当前已不是领主状态。", 0xFFAA00)
     elseif t == 26 then
         show(lord .. " 已动身前往 " .. faction .. "，投奔 " .. king .. " 麾下。", 0x00CC00)
-    elseif t == 27 then
-        local ok = game.gvar.g_wb_msg_arg1
-        local occ = game.gvar.g_wb_msg_arg2
-        show("调试·派出选项：同伴判断=" .. (ok == 1 and "是" or "否") .. "，occupation=" .. occ, 0xFF00FF)
     elseif t == 28 then
         show("从 " .. center .. " 征募了 " .. game.gvar.g_wb_msg_arg1 .. " 名志愿兵。")
     elseif t == 29 then

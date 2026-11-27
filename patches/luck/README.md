@@ -77,7 +77,7 @@ else:
 | 文件 | 改动 |
 |---|---|
 | `scripts.txt` | 改 `cf_enter_center_location_bandit_check` 体行（夜袭幸运判定，78 条语句）；追加 `wb_luck_offering_eval` / `_do` 两个脚本 |
-| `menus.txt` | 改 `menu_castle_outside` 的 `mno_town_sneak` 动作：失败分支插入二次幸运判定（含临时测试提示） |
+| `menus.txt` | 改 `menu_castle_outside` 的 `mno_town_sneak` 动作：失败分支插入二次幸运判定（成功进结果页，不再用浮动消息） |
 | `conversation.txt` | 前部插入配偶「供奉」对话行（状态 9010-9014，确认后 close_window） |
 | `strings.txt` | 追加 11 条（六档等级 + 完成/开始提示 + 夜袭/潜入躲过 + 潜入测试） |
 | `languages\cns\*.csv` | 中文对话与字符串 |

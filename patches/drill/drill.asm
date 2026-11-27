@@ -116,7 +116,7 @@ str_store_troop_name s63 :l2
 assign {{WB_MSG_TYPE}} 26
 
 : wb_outland_probe
-# 调试：判断"这个对话者是不是原同伴"，并把结果写到 Lua 消息（去重，避免刷屏）
+# 判断"这个对话者是不是原同伴"（同伴 1..16 或裸 troop 索引 194..210）
 store_script_param :l0 1
 assign :l1 0
 try_begin
@@ -125,13 +125,5 @@ try_begin
 else_try
   is_between :l0 194 210
   assign :l1 1
-try_end
-troop_get_slot :l3 :l0 2
-try_begin
-  neq {{OUT_LAST}} :l0
-  assign {{OUT_LAST}} :l0
-  assign {{WB_MSG_ARG1}} :l1
-  assign {{WB_MSG_ARG2}} :l3
-  assign {{WB_MSG_TYPE}} 27
 try_end
 eq :l1 1
