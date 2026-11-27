@@ -3013,11 +3013,11 @@ function Apply-Claim([string]$modDir) {
     $TAG_VAR = [int64]144115188075855872
     # 宣称消息队列变量（type/center/faction/lord 各 8 槽 + 计数 + 出队后的类型），末尾追加，旧存档兼容
     $qVarNames = @('g_wb_claim_q_n', 'g_wb_claim_q_type')
-    $qVarNames += 'g_wb_claim_return_center'
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_c$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_f$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_t$qi" }
     for ($qi = 1; $qi -le 8; $qi++) { $qVarNames += "g_wb_claim_q_l$qi" }
+    $qVarNames += 'g_wb_claim_return_center'
     foreach ($vn in $qVarNames) {
         if (-not ($varList -contains $vn)) { $varList += $vn }
     }
