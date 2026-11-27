@@ -2640,13 +2640,11 @@ function Apply-Defeat([string]$modDir) {
     Write-ModpackLog "[defeat] 被俘关押时长：小时 - 等级/$levelDiv，下限 $hoursMin（改了 $mApplied 处）"
 }
 
-# ---------- 领主赎金（玩家战斗后败方领主损失金币；抓获领主时可索要赎金放走） ----------
-# 战败损失（参数 lossPct，默认 30%）挂在 game_event_battle_end：新增脚本
-# wb_ransom_battle_end，在战斗结束、原版战俘处理之前调用。玩家参与的任何战斗
-# （野外/攻城/守城）打赢后，败方领主扣当前金币的 lossPct%。
-# 原版在野外击败敌方领主后会弹出「关押 / 放走」对话（talk_context=9），这里在
-# 对话里加「交出当前金币 ransomPct%（最低 minGold），放你走」；成交后关系/荣誉不变。
-# 选项只在领主当前金币（已扣战败损失）≥ 下限时出现。
+# ---------- 领主赎金（战败领主损失财富；抓获/放走领主时可索要赎金） ----------
+# 战败损失：48h 触发器里对无部队领主调用 create_kingdom_hero_party 重建队伍前，
+#   扣其 troop slot 11（slot_troop_wealth）的 lossPct%（默认 30%）。
+# 赎金选项：野外求饶对话（284）与放人对话（281）里现场读 `$g_talk_troop` 财富，
+#   金额 = max(财富×ransomPct%, minGold)（封顶财富）；成交后关系/荣誉不变。
 function Apply-Ransom([string]$modDir) {
     $pd = Join-Path $PSScriptRoot 'patches\ransom'
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -2665,57 +2663,13 @@ function Apply-Ransom([string]$modDir) {
     if ($ransomPct -lt 1 -or $ransomPct -gt 100) { throw "赎金比例超出 1-100：$ransomPct" }
     if ($minGold -lt 1) { throw "赎金下限必须 ≥1：$minGold" }
 
-    # ---- 变量（追加到变量表末尾；本函数在主流程最后、Finalize-ClaimVars 之后执行，索引不会再变）----
+    # 变量：早期版本用过的 4 个（不再参与逻辑），保留在变量表末尾只为「变量只增不删」的旧存档兼容
     $vPath = Join-Path $modDir 'variables.txt'
     $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
     foreach ($vn in @('g_wb_ransom_lord', 'g_wb_ransom_amount', 'g_wb_ransom_ok', 'g_wb_ransom_done')) {
         if (-not ($varList -contains $vn)) { $varList += $vn }
     }
     [IO.File]::WriteAllText($vPath, (($varList -join "`r`n") + "`r`n"), $enc)
-    $TAG_VAR = [int64]144115188075855872
-    if ([array]::IndexOf($varList, 'g_battle_result') -lt 0 -or [array]::IndexOf($varList, 'g_encountered_party') -lt 0) { throw '缺少 g_battle_result / g_encountered_party 变量（领主赎金需要）' }
-    $battleResultTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_battle_result'))
-    $encPartyTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_encountered_party'))
-    $enemyPartyTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_enemy_party'))
-    $varLord = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_lord'))
-    $varAmount = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_amount'))
-    $varOk = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_ok'))
-    $varDone = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_done'))
-
-    # troops 数量（遍历 troop 找 leaded_party 时的上界）
-    $troopRows = [IO.File]::ReadAllText((Join-Path $modDir 'troops.txt'), $enc) -split "\r?\n"
-    $troopCount = 0
-    if (-not [int]::TryParse($troopRows[1].Trim(), [ref]$troopCount)) { throw 'troops.txt 第 2 行不是 troops 数量' }
-    $troopEnd = [string]([int64]360287970189639680 + [int64]$troopCount)
-
-    # ---- 调试提示串（quick_strings；显示记录/结算/金额，测试期用）----
-    $qPath = Join-Path $modDir 'quick_strings.txt'
-    $qRows = [IO.File]::ReadAllText($qPath, $enc) -split "\r?\n"
-    $qn = 0
-    if (-not [int]::TryParse($qRows[0].Trim(), [ref]$qn)) { throw 'quick_strings.txt 第 1 行不是数量' }
-    $QSTR_TAG = [uint64]1585267068834414592
-    $dbgNames = @('qstr_wb_ransom_dbg_enc', 'qstr_wb_ransom_dbg_be', 'qstr_wb_ransom_dbg_calc')
-    $dbgTag = @{}
-    if (($qRows -join "`n") -match 'qstr_wb_ransom_dbg') {
-        for ($i = 1; $i -lt $qRows.Count; $i++) {
-            $nm = ($qRows[$i].Trim() -split '\s+')[0]
-            if ($dbgNames -contains $nm) { $dbgTag[$nm] = [string]($QSTR_TAG + [uint64]($i - 1)) }
-        }
-    } else {
-        $qBody = @($qRows)
-        while ($qBody.Count -ge 1 -and $qBody[$qBody.Count - 1] -eq '') { $qBody = $qBody[0..($qBody.Count - 2)] }
-        $qBody += 'qstr_wb_ransom_dbg_enc enc:{reg2}_{s1}_{reg1}_{reg3}'
-        $qBody += 'qstr_wb_ransom_dbg_be be:_{reg0}_{reg1}_{reg2}'
-        $qBody += 'qstr_wb_ransom_dbg_calc calc:_{s1}_{reg0}_{reg1}_{reg2}_{reg3}'
-        $qBody[0] = [string]($qn + 3)
-        [IO.File]::WriteAllText($qPath, ((($qBody -join "`r`n")) + "`r`n"), $enc)
-        $dbgTag = @{
-            'qstr_wb_ransom_dbg_enc' = [string]($QSTR_TAG + [uint64]$qn)
-            'qstr_wb_ransom_dbg_be' = [string]($QSTR_TAG + [uint64]($qn + 1))
-            'qstr_wb_ransom_dbg_calc' = [string]($QSTR_TAG + [uint64]($qn + 2))
-        }
-    }
-    foreach ($dn in $dbgNames) { if (-not $dbgTag.ContainsKey($dn)) { throw "缺少调试串 $dn" } }
 
     # ---- 领主重建队伍时扣 lossPct%（48h 触发器里 create_kingdom_hero_party 调用前）----
     $scPath = Join-Path $modDir 'scripts.txt'
@@ -2777,7 +2731,7 @@ function Apply-Ransom([string]$modDir) {
     if ($anchor -lt 0) { throw 'conversation.txt 里找不到 dlga_defeat_lord_answer:defeat_lord_answer_2（放走选项）' }
     $dAdd = @((Read-TextNoBom (Join-Path $pd 'dialogs_add.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($dAdd.Count -ne 4) { throw "领主赎金对话补丁应 4 行（求饶 + 放人各 2 行），实际 $($dAdd.Count)" }
-    $dAdd = $dAdd -replace [regex]::Escape('{{AMOUNT}}'), $varAmount -replace [regex]::Escape('{{OK}}'), $varOk -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold
+    $dAdd = $dAdd -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold
     if (($dAdd -join "`n") -match '\{\{') { throw '领主赎金对话还有未替换的占位符' }
     # 求饶对话（defeat_lord_answer_2 之前）2 行
     $convBody = @($convBody[0..($anchor - 1)]) + @($dAdd[0], $dAdd[1]) + @($convBody[$anchor..($convBody.Count - 1)])
@@ -2799,7 +2753,7 @@ function Apply-Ransom([string]$modDir) {
         $entries = (Read-TextNoBom (Join-Path $pd 'dialogs_lang.csv')).TrimEnd()
         Save-TextWithBom $dl ((@($lines) -join "`r`n").TrimEnd() + "`r`n" + $entries + "`r`n")
     }
-    Write-ModpackLog ("[ransom] 领主赎金：遭遇时记录领主；战斗胜利扣 {0}%，赎金取当前金币 {1}%（下限 {2}）" -f $lossPct, $ransomPct, $minGold)
+    Write-ModpackLog ("[ransom] 领主赎金：领主重建队伍时扣 {0}% 财富；求饶/放人对话可索要 {1}%（下限 {2}）" -f $lossPct, $ransomPct, $minGold)
 }
 
 # ---------- 消息变量（Native 写、Lua 读） ----------
