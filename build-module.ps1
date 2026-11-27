@@ -2680,6 +2680,12 @@ function Apply-Ransom([string]$modDir) {
     $varAmount = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_amount'))
     $varOk = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_ok'))
 
+    # troops 数量（遍历 troop 找 leaded_party 时的上界）
+    $troopRows = [IO.File]::ReadAllText((Join-Path $modDir 'troops.txt'), $enc) -split "\r?\n"
+    $troopCount = 0
+    if (-not [int]::TryParse($troopRows[1].Trim(), [ref]$troopCount)) { throw 'troops.txt 第 2 行不是 troops 数量' }
+    $troopEnd = [string]([int64]360287970189639680 + [int64]$troopCount)
+
     # ---- 调试提示串（quick_strings；显示记录/结算/金额，测试期用）----
     $qPath = Join-Path $modDir 'quick_strings.txt'
     $qRows = [IO.File]::ReadAllText($qPath, $enc) -split "\r?\n"
@@ -2696,7 +2702,7 @@ function Apply-Ransom([string]$modDir) {
     } else {
         $qBody = @($qRows)
         while ($qBody.Count -ge 1 -and $qBody[$qBody.Count - 1] -eq '') { $qBody = $qBody[0..($qBody.Count - 2)] }
-        $qBody += 'qstr_wb_ransom_dbg_enc enc:_{s1}_{reg1}'
+        $qBody += 'qstr_wb_ransom_dbg_enc enc:{reg2}_{s1}_{reg1}_{reg3}'
         $qBody += 'qstr_wb_ransom_dbg_be be:_{reg0}_{reg1}_{reg2}'
         $qBody += 'qstr_wb_ransom_dbg_calc calc:_{s1}_{reg0}_{reg1}_{reg2}_{reg3}'
         $qBody[0] = [string]($qn + 3)
@@ -2728,7 +2734,7 @@ function Apply-Ransom([string]$modDir) {
 
     $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($body.Count -ne 4) { throw "ransom/scripts.txt 应为 4 行（2 个脚本：encounter + battle_end），实际 $($body.Count)" }
-    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
+    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{TROOP_END}}'), $troopEnd -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
     if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
 
     $encTag = [string]($TAG_SCRIPT + $n)

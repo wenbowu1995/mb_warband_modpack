@@ -25,11 +25,10 @@ try_begin
     party_get_slot :l1 {{G_ENCOUNTERED_PARTY}} 7
   else_try
     eq :l0 13
-    party_get_num_companion_stacks :l2 {{G_ENCOUNTERED_PARTY}}
-    try_for_range :l3 0 :l2
-      party_stack_get_troop_id :l4 {{G_ENCOUNTERED_PARTY}} :l3
+    # 反查真正带这支部队的领主：遍历 troop 的 slot_troop_leaded_party（槽 10）== party
+    try_for_range :l4 360287970189639680 {{TROOP_END}}
       try_begin
-        troop_slot_eq :l4 2 2
+        troop_slot_eq :l4 10 {{G_ENCOUNTERED_PARTY}}
         assign :l1 :l4
       end_try
     end_try
@@ -48,8 +47,11 @@ try_begin
   try_begin
     gt :l1 0
     str_store_troop_name s1 :l1
+    troop_get_slot :l7 :l1 11
     assign reg0 :l1
     assign reg1 {{G_ENCOUNTERED_PARTY}}
+    assign reg2 :l0
+    assign reg3 :l7
     display_message {{DBG_ENC}}
   end_try
 else_try
@@ -82,11 +84,9 @@ try_begin
       party_get_slot :l9 {{G_ENCOUNTERED_PARTY}} 7
     else_try
       eq :l0 13
-      party_get_num_companion_stacks :l2 {{G_ENCOUNTERED_PARTY}}
-      try_for_range :l3 0 :l2
-        party_stack_get_troop_id :l4 {{G_ENCOUNTERED_PARTY}} :l3
+      try_for_range :l4 360287970189639680 {{TROOP_END}}
         try_begin
-          troop_slot_eq :l4 2 2
+          troop_slot_eq :l4 10 {{G_ENCOUNTERED_PARTY}}
           assign :l9 :l4
         end_try
       end_try
@@ -103,11 +103,13 @@ try_begin
   end_try
   try_begin
     gt :l9 0
-    store_troop_gold :l5 :l9
-    val_div :l5 100
-    val_mul :l5 {{LOSS}}
-    troop_remove_gold :l9 :l5
-    store_troop_gold :l5 :l9
+    # 战团领主的财富在 troop slot 11（slot_troop_wealth），不是 store_troop_gold 的 gold 字段
+    troop_get_slot :l5 :l9 11
+    assign :l7 :l5
+    val_div :l7 100
+    val_mul :l7 {{LOSS}}
+    val_sub :l5 :l7
+    troop_set_slot :l9 11 :l5
     try_begin
       ge :l5 {{MIN}}
       assign :l6 :l5
