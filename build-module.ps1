@@ -2643,7 +2643,7 @@ function Apply-Defeat([string]$modDir) {
 # ---------- 领主赎金（抓获领主时可索要其当前金币的一部分放走） ----------
 # 原版在野外击败敌方领主后（$g_battle_result=9）弹出「关押 / 放走」对话；
 # 这里在对话入口先扣领主 lossPct% 金币（战败损失），再在选项里加
-# 「交出当前金币 ransomePct%（最低 minGold），放你走」。
+# 「交出当前金币 ransomPct%（最低 minGold），放你走」。
 # 选项只在领主当前金币 ≥ 下限时出现；成交后关系/荣誉不变（不加好感）。
 function Apply-Ransom([string]$modDir) {
     $pd = Join-Path $PSScriptRoot 'patches\ransom'
