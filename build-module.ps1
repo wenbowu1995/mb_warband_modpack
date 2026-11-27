@@ -3612,22 +3612,26 @@ function Apply-SortItems([string]$modDir) {
     $asmPatch = Join-Path $pd 'scripts.txt'
     if (-not (Test-Path $asmPatch)) { throw 'patches\sort\scripts.txt 缺失（先跑 wb-asm.ps1 汇编 sort.asm）' }
 
-    # 1) scripts.txt 追加 1 个脚本（wb_sort_items：调用引擎 troop_sort_inventory）
+    # 1) scripts.txt 追加 4 个脚本（wb_sort_items 入口 + wb_sort_key 排序键 + wb_sort_weight 前缀档位 + wb_swap_slots 换槽）
     $sPath = Join-Path $modDir 'scripts.txt'
     $scRows = [IO.File]::ReadAllText($sPath, $enc) -split "\r?\n"
     if (($scRows -join "`n") -match 'wb_sort_items') { throw '这个模块里已经有物品排序功能了' }
     $n = 0
     if (-not [int]::TryParse($scRows[1].Trim(), [ref]$n)) { throw 'scripts.txt 第 2 行不是脚本数量' }
     $patchRows = @([IO.File]::ReadAllText($asmPatch, $enc) -split "\r?\n" | Where-Object { $_ -ne '' })
-    if ($patchRows.Count -ne 2) { throw "排序脚本补丁应 2 行（1 个脚本 ×2），实际 $($patchRows.Count)" }
+    if ($patchRows.Count -ne 8) { throw "排序脚本补丁应 8 行（4 个脚本 ×2），实际 $($patchRows.Count)" }
     $scriptNames = @()
     for ($i = 0; $i -lt $patchRows.Count; $i += 2) { $scriptNames += (($patchRows[$i].Trim() -split '\s+')[0]) }
     $tagOf = @{}
     for ($k = 0; $k -lt $scriptNames.Count; $k++) { $tagOf[$scriptNames[$k]] = [string]([uint64]936748722493063168 + [uint64]($n + $k)) }
-    foreach ($need in @('wb_sort_items')) {
+    foreach ($need in @('wb_sort_items', 'wb_sort_key', 'wb_sort_weight', 'wb_swap_slots')) {
         if (-not $tagOf.ContainsKey($need)) { throw "sort 补丁缺脚本 $need" }
     }
-    $repl = @{}
+    $repl = @{
+        '{{SORT_KEY}}' = $tagOf['wb_sort_key'];
+        '{{SORT_WEIGHT}}' = $tagOf['wb_sort_weight'];
+        '{{SORT_SWAP}}' = $tagOf['wb_swap_slots']
+    }
     $outLines = New-Object System.Collections.Generic.List[string]
     foreach ($row in $patchRows) {
         $line = $row
@@ -3671,11 +3675,24 @@ function Apply-SortItems([string]$modDir) {
     $TAG_MENU = [uint64]864691128455135232
     $doneTag = [string]($TAG_MENU + [uint64]$mCount)
     $tradeTag = [string]($TAG_MENU + [uint64]$tradeIdx)
+    # trp_find_item_cheat 的 tag：从模块 troops.txt 动态取索引（追加部队都在其后，索引稳定）
+    $tPath = Join-Path $modDir 'troops.txt'
+    $tRows = [IO.File]::ReadAllText($tPath, $enc) -split "\r?\n"
+    $trpIdx = -1; $tIdx = 0
+    for ($i = 0; $i -lt $tRows.Count; $i++) {
+        if ($tRows[$i] -match '^trp_') {
+            if ($tRows[$i] -like 'trp_find_item_cheat *') { $trpIdx = $tIdx }
+            $tIdx++
+        }
+    }
+    if ($trpIdx -lt 0) { throw 'troops.txt 里没有 trp_find_item_cheat' }
+    $trpFindItem = [string]([uint64]360287970189639680 + [uint64]$trpIdx)
     $newOpt = 'mno_wb_sort_items 0 Sort_the_items. 1 2060 1 ' + $doneTag + ' .'
     $mRows[$tradeLine + 1] = $optLine.Substring(0, $dot + 3) + ' ' + $newOpt + $optLine.Substring($dot + 3)
-    # 追加「整理中」菜单（菜单行 + 继续选项）：菜单初始化里调排序脚本，追加末尾不影响已有菜单 ID
+    # 追加「整理完成」菜单（菜单行 + 返回选项）：菜单初始化里调整理脚本（搬出→清空→搬回），
+    # 追加末尾不影响已有菜单 ID
     $mRows += 'menu_wb_sort_done 18374686479671624192 Sort_done. none 1 1 1 ' + $tagOf['wb_sort_items'] + ' 1'
-    $mRows += 'mno_wb_sort_continue 0 Continue... 1 2060 1 ' + $tradeTag + ' .'
+    $mRows += 'mno_wb_sort_continue 0 Back. 1 2060 1 ' + $tradeTag + ' .'
     $mRows[1] = [string]($mCount + 1)
     [IO.File]::WriteAllText($mPath, ($mRows -join "`r`n"), $enc)
 
@@ -3686,7 +3703,7 @@ function Apply-SortItems([string]$modDir) {
         $entries = (Read-TextNoBom (Join-Path $pd 'lang_entries.csv')).TrimEnd()
         Save-TextWithBom $langPath ($langText.TrimEnd() + "`r`n" + $entries + "`r`n")
     }
-    Write-ModpackLog "[sortitems] 1 个脚本（troop_sort_inventory）+ 市场菜单 1 项 + 3 条中文词条"
+    Write-ModpackLog "[sortitems] 2 个脚本（预览版：按 书/马/货/武器/甲/其他 复制进临时部队）+ 市场菜单 1 项 + 4 条中文词条"
 }
 
 # ---------- 作弊菜单汉化（cheatlang） ----------

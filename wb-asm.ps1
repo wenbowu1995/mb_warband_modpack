@@ -46,7 +46,9 @@ $script:OpArity = @{
     'str_clear' = 1
     'troop_get_inventory_capacity' = 2; 'troop_get_inventory_slot' = 3
     'troop_sort_inventory' = 1; 'troop_clear_inventory' = 1
+    'troop_add_items' = 3
     'troop_inventory_slot_get_item_amount' = 3; 'troop_inventory_slot_set_item_amount' = 3
+    'troop_inventory_slot_get_item_max_amount' = 3
     'store_item_value' = 2
     'troop_get_inventory_slot_modifier' = 3; 'troop_set_inventory_slot' = 3
     'troop_set_inventory_slot_modifier' = 3; 'troop_add_item' = 3
@@ -100,6 +102,8 @@ $script:OpAlias = @{
 # 符号常量
 $script:Sym = @{
     'trp_player' = [uint64]360287970189639680
+    'trp_find_item_cheat' = [uint64]360287970189639684   # troops.txt 索引 4（作弊物品查找的临时部队）
+    'trp_temp_troop' = [uint64]360287970189639683   # troops.txt 索引 3（战利品临时部队）
     'party' = [uint64]648518346341351424
     'itp_couchable' = [int64]-2147483648
     'fac_player_supporters_faction' = [uint64]432345564227567630
