@@ -134,7 +134,12 @@ try_begin
     assign {{G_RANSOM_OK}} 0
     assign {{G_RANSOM_AMOUNT}} 0
   end_try
-  str_store_troop_name s1 :l9
+  try_begin
+    gt :l9 0
+    str_store_troop_name s1 :l9
+  else_try
+    str_clear s1
+  end_try
   assign reg0 :l9
   assign reg1 :l5
   assign reg2 {{G_RANSOM_OK}}
