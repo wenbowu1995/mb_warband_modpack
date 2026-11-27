@@ -2665,7 +2665,22 @@ function Apply-Ransom([string]$modDir) {
     if ($ransomPct -lt 1 -or $ransomPct -gt 100) { throw "赎金比例超出 1-100：$ransomPct" }
     if ($minGold -lt 1) { throw "赎金下限必须 ≥1：$minGold" }
 
-    # 脚本索引（troop_add_gold 给玩家加钱、add_log_entry 记「放走领主」）
+    # ---- 变量（追加到变量表末尾；本函数在主流程最后、Finalize-ClaimVars 之后执行，索引不会再变）----
+    $vPath = Join-Path $modDir 'variables.txt'
+    $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
+    foreach ($vn in @('g_wb_ransom_lord', 'g_wb_ransom_amount', 'g_wb_ransom_ok')) {
+        if (-not ($varList -contains $vn)) { $varList += $vn }
+    }
+    [IO.File]::WriteAllText($vPath, (($varList -join "`r`n") + "`r`n"), $enc)
+    $TAG_VAR = [int64]144115188075855872
+    if ([array]::IndexOf($varList, 'g_battle_result') -lt 0 -or [array]::IndexOf($varList, 'g_encountered_party') -lt 0) { throw '缺少 g_battle_result / g_encountered_party 变量（领主赎金需要）' }
+    $battleResultTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_battle_result'))
+    $encPartyTag = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_encountered_party'))
+    $varLord = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_lord'))
+    $varAmount = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_amount'))
+    $varOk = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_ok'))
+
+    # ---- 脚本（遭遇时记录领主；战斗结束时扣款并预算赎金）----
     $scPath = Join-Path $modDir 'scripts.txt'
     $scLines = [IO.File]::ReadAllText($scPath, $enc) -split "\r?\n"
     $n = 0
@@ -2675,54 +2690,45 @@ function Apply-Ransom([string]$modDir) {
         $nm = ($scLines[2 + 2 * $i].Trim() -split '\s+')[0]
         if ($nm) { $idxOf[$nm] = $i }
     }
-    foreach ($need in @('troop_add_gold', 'add_log_entry')) {
+    foreach ($need in @('troop_add_gold', 'add_log_entry', 'game_event_party_encounter', 'game_event_battle_end')) {
         if (-not $idxOf.ContainsKey($need)) { throw "缺少脚本 $need（领主赎金需要它）" }
     }
+    if ($idxOf.ContainsKey('wb_ransom_encounter') -or $idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
     $addGoldTag = [string]($TAG_SCRIPT + $idxOf['troop_add_gold'])
     $logTag     = [string]($TAG_SCRIPT + $idxOf['add_log_entry'])
 
-    # 对话
+    $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
+    if ($body.Count -ne 4) { throw "ransom/scripts.txt 应为 4 行（2 个脚本：encounter + battle_end），实际 $($body.Count)" }
+    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold
+    if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
+
+    $encTag = [string]($TAG_SCRIPT + $n)
+    $beTag = [string]($TAG_SCRIPT + $n + 1)
+    while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
+    $scLines[1] = [string]($n + 2)
+    $scLines += $body[0]
+    $scLines += $body[1]
+    $scLines += $body[2]
+    $scLines += $body[3]
+    # 遭遇时记录敌方领主（此时 encountered party 有效）
+    $row = 2 + 2 * $idxOf['game_event_party_encounter'] + 1
+    $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+    $t[0] = [string]([int]$t[0] + 1)
+    $scLines[$row] = ' ' + $t[0] + ' 1 1 ' + $encTag + ' ' + (($t[1..($t.Count - 1)]) -join ' ')
+    # 战斗结束时扣款 + 预计算赎金
+    $row = 2 + 2 * $idxOf['game_event_battle_end'] + 1
+    $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+    $t[0] = [string]([int]$t[0] + 1)
+    $scLines[$row] = ' ' + $t[0] + ' 1 1 ' + $beTag + ' ' + (($t[1..($t.Count - 1)]) -join ' ')
+    [IO.File]::WriteAllText($scPath, (($scLines -join "`r`n") + "`r`n"), $enc)
+
+    # ---- 对话（赎金选项插在「放你走」之前；条件只读预计算变量）----
     $convPath = Join-Path $modDir 'conversation.txt'
     $convLines = [IO.File]::ReadAllText($convPath, $enc) -split "\r?\n"
     $cCount = 0
     if (-not [int]::TryParse($convLines[1].Trim(), [ref]$cCount)) { throw 'conversation.txt 第 2 行不是对话数量' }
     if (($convLines -join "`n") -match 'wb_ransom') { throw '这个模块里已经有领主赎金功能了' }
     $convBody = @($convLines | Select-Object -SkipLast 1)
-
-    # (1) 脚本：玩家参与的战斗结束时，战败方领主损失 lossPct% 金币
-    if ($lossPct -gt 0) {
-        $vPath = Join-Path $modDir 'variables.txt'
-        $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
-        $TAG_VAR = [int64]144115188075855872
-        $battleResultAt = [array]::IndexOf($varList, 'g_battle_result')
-        $encPartyAt = [array]::IndexOf($varList, 'g_encountered_party')
-        $enemyPartyAt = [array]::IndexOf($varList, 'g_enemy_party')
-        if ($battleResultAt -lt 0 -or $encPartyAt -lt 0 -or $enemyPartyAt -lt 0) { throw '缺少 g_battle_result / g_encountered_party / g_enemy_party 变量（领主赎金需要）' }
-        $battleResultTag = [string]($TAG_VAR + $battleResultAt)
-        $encPartyTag = [string]($TAG_VAR + $encPartyAt)
-        $enemyPartyTag = [string]($TAG_VAR + $enemyPartyAt)
-
-        $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
-        if ($body.Count -ne 2) { throw "ransom/scripts.txt 应为 2 行，实际 $($body.Count)" }
-        $body[1] = $body[1].Replace('{{G_BATTLE_RESULT}}', $battleResultTag).Replace('{{G_ENCOUNTERED_PARTY}}', $encPartyTag).Replace('{{G_ENEMY_PARTY}}', $enemyPartyTag).Replace('{{LOSS}}', [string]$lossPct)
-        if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
-
-        if ($idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
-        if (-not $idxOf.ContainsKey('game_event_battle_end')) { throw '缺少 game_event_battle_end 脚本（领主赎金需要）' }
-        $newTag = [string]($TAG_SCRIPT + $n)
-        while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
-        $scLines[1] = [string]($n + 1)
-        $scLines += $body[0]
-        $scLines += $body[1]
-        # 在 game_event_battle_end 体行开头调用（先扣钱，随后才是原版战俘处理）
-        $beRow = 2 + 2 * $idxOf['game_event_battle_end'] + 1
-        $beT = @($scLines[$beRow].Trim() -split '\s+' | Where-Object { $_ -ne '' })
-        $beT[0] = [string]([int]$beT[0] + 1)
-        $scLines[$beRow] = ' ' + $beT[0] + ' 1 1 ' + $newTag + ' ' + (($beT[1..($beT.Count - 1)]) -join ' ')
-        [IO.File]::WriteAllText($scPath, (($scLines -join "`r`n") + "`r`n"), $enc)
-    }
-
-    # (2) 赎金选项：插在「放你走」选项（defeat_lord_answer_2）之前
     $anchor = -1
     for ($i = 2; $i -lt $convBody.Count; $i++) {
         if ($convBody[$i] -match '^dlga_defeat_lord_answer:defeat_lord_answer_2\s') { $anchor = $i; break }
@@ -2730,7 +2736,7 @@ function Apply-Ransom([string]$modDir) {
     if ($anchor -lt 0) { throw 'conversation.txt 里找不到 dlga_defeat_lord_answer:defeat_lord_answer_2（放走选项）' }
     $dAdd = @((Read-TextNoBom (Join-Path $pd 'dialogs_add.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($dAdd.Count -ne 2) { throw "领主赎金对话补丁应 2 行，实际 $($dAdd.Count)" }
-    $dAdd = $dAdd -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag
+    $dAdd = $dAdd -replace [regex]::Escape('{{AMOUNT}}'), $varAmount -replace [regex]::Escape('{{OK}}'), $varOk -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag
     if (($dAdd -join "`n") -match '\{\{') { throw '领主赎金对话还有未替换的占位符' }
     $convBody = @($convBody[0..($anchor - 1)]) + $dAdd + @($convBody[$anchor..($convBody.Count - 1)])
     $convBody[1] = [string]($cCount + $dAdd.Count)
@@ -2744,7 +2750,7 @@ function Apply-Ransom([string]$modDir) {
         $entries = (Read-TextNoBom (Join-Path $pd 'dialogs_lang.csv')).TrimEnd()
         Save-TextWithBom $dl ((@($lines) -join "`r`n").TrimEnd() + "`r`n" + $entries + "`r`n")
     }
-    Write-ModpackLog ("[ransom] 领主赎金：玩家战斗后败方领主损失 {0}% 金币；可索要当前金币 {1}%（下限 {2}）放走，关系/荣誉不变" -f $lossPct, $ransomPct, $minGold)
+    Write-ModpackLog ("[ransom] 领主赎金：遭遇时记录领主；战斗胜利扣 {0}%，赎金取当前金币 {1}%（下限 {2}）" -f $lossPct, $ransomPct, $minGold)
 }
 
 # ---------- 消息变量（Native 写、Lua 读） ----------
@@ -3985,7 +3991,6 @@ if ($Features -contains 'lua')        { Apply-Lua $target }
 if ($Features -contains 'learnskill') { Apply-LearnSkill $target }
 if ($Features -contains 'luck')      { Apply-LuckTrigger $target }
 if ($Features -contains 'defeat')     { Apply-Defeat $target }
-if ($Features -contains 'ransom')     { Apply-Ransom $target }
 if ($Features -contains 'drill')      { Apply-Drill $target }
 if ($Features -contains 'patrol')     { Apply-Patrol $target }
 if ($Features -contains 'sortitems')  { Apply-SortItems $target }
@@ -3993,6 +3998,9 @@ if ($Features -contains 'cheatlang')  { Apply-CheatLang $target }
 
 # 变量重排：宣称队列变量移到变量表末尾（其余变量索引与旧存档保持一致）
 if ($Features -contains 'claim') { Finalize-ClaimVars $target }
+
+# 领主赎金：必须放在变量重排之后（否则自己追加的变量会被 Finalize-ClaimVars 挪位）
+if ($Features -contains 'ransom') { Apply-Ransom $target }
 
 # 3) 应用游戏参数（params.md 里填的）
 Apply-Params $target
