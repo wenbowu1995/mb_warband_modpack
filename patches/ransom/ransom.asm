@@ -103,18 +103,19 @@ try_begin
       end_try
       assign {{G_RANSOM_OK}} 1
       assign {{G_RANSOM_AMOUNT}} :l6
-      assign reg0 :l9
-      assign reg1 :l5
-      assign reg2 {{G_RANSOM_OK}}
-      assign reg3 {{G_RANSOM_AMOUNT}}
-      display_message {{DBG_CALC}}
     else_try
       assign {{G_RANSOM_OK}} 0
       assign {{G_RANSOM_AMOUNT}} 0
     end_try
   else_try
+    assign :l5 0
     assign {{G_RANSOM_OK}} 0
     assign {{G_RANSOM_AMOUNT}} 0
   end_try
+  assign reg0 :l9
+  assign reg1 :l5
+  assign reg2 {{G_RANSOM_OK}}
+  assign reg3 {{G_RANSOM_AMOUNT}}
+  display_message {{DBG_CALC}}
 end_try
 assign {{G_RANSOM_LORD}} -1
