@@ -2680,6 +2680,35 @@ function Apply-Ransom([string]$modDir) {
     $varAmount = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_amount'))
     $varOk = [string]($TAG_VAR + [array]::IndexOf($varList, 'g_wb_ransom_ok'))
 
+    # ---- 调试提示串（quick_strings；显示记录/结算/金额，测试期用）----
+    $qPath = Join-Path $modDir 'quick_strings.txt'
+    $qRows = [IO.File]::ReadAllText($qPath, $enc) -split "\r?\n"
+    $qn = 0
+    if (-not [int]::TryParse($qRows[0].Trim(), [ref]$qn)) { throw 'quick_strings.txt 第 1 行不是数量' }
+    $QSTR_TAG = [uint64]1585267068834414592
+    $dbgNames = @('qstr_wb_ransom_dbg_enc', 'qstr_wb_ransom_dbg_be', 'qstr_wb_ransom_dbg_calc')
+    $dbgTag = @{}
+    if (($qRows -join "`n") -match 'qstr_wb_ransom_dbg') {
+        for ($i = 1; $i -lt $qRows.Count; $i++) {
+            $nm = ($qRows[$i].Trim() -split '\s+')[0]
+            if ($dbgNames -contains $nm) { $dbgTag[$nm] = [string]($QSTR_TAG + [uint64]($i - 1)) }
+        }
+    } else {
+        $qBody = @($qRows)
+        while ($qBody.Count -ge 1 -and $qBody[$qBody.Count - 1] -eq '') { $qBody = $qBody[0..($qBody.Count - 2)] }
+        $qBody += 'qstr_wb_ransom_dbg_enc enc:_{reg0}_{reg1}'
+        $qBody += 'qstr_wb_ransom_dbg_be be:_{reg0}_{reg1}_{reg2}'
+        $qBody += 'qstr_wb_ransom_dbg_calc calc:_{reg0}_{reg1}_{reg2}_{reg3}'
+        $qBody[0] = [string]($qn + 3)
+        [IO.File]::WriteAllText($qPath, ((($qBody -join "`r`n")) + "`r`n"), $enc)
+        $dbgTag = @{
+            'qstr_wb_ransom_dbg_enc' = [string]($QSTR_TAG + [uint64]$qn)
+            'qstr_wb_ransom_dbg_be' = [string]($QSTR_TAG + [uint64]($qn + 1))
+            'qstr_wb_ransom_dbg_calc' = [string]($QSTR_TAG + [uint64]($qn + 2))
+        }
+    }
+    foreach ($dn in $dbgNames) { if (-not $dbgTag.ContainsKey($dn)) { throw "缺少调试串 $dn" } }
+
     # ---- 脚本（遭遇时记录领主；战斗结束时扣款并预算赎金）----
     $scPath = Join-Path $modDir 'scripts.txt'
     $scLines = [IO.File]::ReadAllText($scPath, $enc) -split "\r?\n"
@@ -2699,7 +2728,7 @@ function Apply-Ransom([string]$modDir) {
 
     $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
     if ($body.Count -ne 4) { throw "ransom/scripts.txt 应为 4 行（2 个脚本：encounter + battle_end），实际 $($body.Count)" }
-    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold
+    $body = $body -replace [regex]::Escape('{{G_BATTLE_RESULT}}'), $battleResultTag -replace [regex]::Escape('{{G_ENCOUNTERED_PARTY}}'), $encPartyTag -replace [regex]::Escape('{{G_RANSOM_LORD}}'), $varLord -replace [regex]::Escape('{{G_RANSOM_AMOUNT}}'), $varAmount -replace [regex]::Escape('{{G_RANSOM_OK}}'), $varOk -replace [regex]::Escape('{{LOSS}}'), [string]$lossPct -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{DBG_ENC}}'), $dbgTag['qstr_wb_ransom_dbg_enc'] -replace [regex]::Escape('{{DBG_BE}}'), $dbgTag['qstr_wb_ransom_dbg_be'] -replace [regex]::Escape('{{DBG_CALC}}'), $dbgTag['qstr_wb_ransom_dbg_calc']
     if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
 
     $encTag = [string]($TAG_SCRIPT + $n)
@@ -2710,11 +2739,14 @@ function Apply-Ransom([string]$modDir) {
     $scLines += $body[1]
     $scLines += $body[2]
     $scLines += $body[3]
-    # 遭遇时记录敌方领主（此时 encountered party 有效）
+    # 遭遇时记录敌方领主：原生第一条语句是「store_script_param 1 → $g_encountered_party」，
+    # 必须插在它之后，否则读到的还是上一次的值（实测记录不到领主 → 不扣钱/无选项）。
     $row = 2 + 2 * $idxOf['game_event_party_encounter'] + 1
     $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+    if ($t.Count -lt 5 -or $t[1] -ne '21' -or $t[2] -ne '1') { throw 'game_event_party_encounter 体行结构变了（期望首条 store_script_param 1 → g_encountered_party）' }
     $t[0] = [string]([int]$t[0] + 1)
-    $scLines[$row] = ' ' + $t[0] + ' 1 1 ' + $encTag + ' ' + (($t[1..($t.Count - 1)]) -join ' ')
+    $newT = @($t[0], $t[1], $t[2], $t[3], '1', '1', $encTag) + @($t[4..($t.Count - 1)])
+    $scLines[$row] = ' ' + ($newT -join ' ')
     # 战斗结束时扣款 + 预计算赎金
     $row = 2 + 2 * $idxOf['game_event_battle_end'] + 1
     $t = @($scLines[$row].Trim() -split '\s+' | Where-Object { $_ -ne '' })

@@ -35,6 +35,12 @@ try_begin
     end_try
   end_try
   assign {{G_RANSOM_LORD}} :l1
+  try_begin
+    gt :l1 0
+    assign reg0 :l1
+    assign reg1 {{G_ENCOUNTERED_PARTY}}
+    display_message {{DBG_ENC}}
+  end_try
 else_try
   assign {{G_RANSOM_LORD}} -1
 end_try
@@ -47,6 +53,10 @@ assign {{G_RANSOM_AMOUNT}} 0
 try_begin
   eq {{G_BATTLE_RESULT}} 1
   assign :l9 {{G_RANSOM_LORD}}
+  assign reg0 {{G_BATTLE_RESULT}}
+  assign reg1 {{G_ENCOUNTERED_PARTY}}
+  assign reg2 {{G_RANSOM_LORD}}
+  display_message {{DBG_BE}}
   try_begin
     gt :l9 0
   else_try
@@ -93,6 +103,11 @@ try_begin
       end_try
       assign {{G_RANSOM_OK}} 1
       assign {{G_RANSOM_AMOUNT}} :l6
+      assign reg0 :l9
+      assign reg1 :l5
+      assign reg2 {{G_RANSOM_OK}}
+      assign reg3 {{G_RANSOM_AMOUNT}}
+      display_message {{DBG_CALC}}
     else_try
       assign {{G_RANSOM_OK}} 0
       assign {{G_RANSOM_AMOUNT}} 0
