@@ -2696,13 +2696,15 @@ function Apply-Ransom([string]$modDir) {
         $TAG_VAR = [int64]144115188075855872
         $battleResultAt = [array]::IndexOf($varList, 'g_battle_result')
         $encPartyAt = [array]::IndexOf($varList, 'g_encountered_party')
-        if ($battleResultAt -lt 0 -or $encPartyAt -lt 0) { throw '缺少 g_battle_result / g_encountered_party 变量（领主赎金需要）' }
+        $enemyPartyAt = [array]::IndexOf($varList, 'g_enemy_party')
+        if ($battleResultAt -lt 0 -or $encPartyAt -lt 0 -or $enemyPartyAt -lt 0) { throw '缺少 g_battle_result / g_encountered_party / g_enemy_party 变量（领主赎金需要）' }
         $battleResultTag = [string]($TAG_VAR + $battleResultAt)
         $encPartyTag = [string]($TAG_VAR + $encPartyAt)
+        $enemyPartyTag = [string]($TAG_VAR + $enemyPartyAt)
 
         $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
         if ($body.Count -ne 2) { throw "ransom/scripts.txt 应为 2 行，实际 $($body.Count)" }
-        $body[1] = $body[1].Replace('{{G_BATTLE_RESULT}}', $battleResultTag).Replace('{{G_ENCOUNTERED_PARTY}}', $encPartyTag).Replace('{{LOSS}}', [string]$lossPct)
+        $body[1] = $body[1].Replace('{{G_BATTLE_RESULT}}', $battleResultTag).Replace('{{G_ENCOUNTERED_PARTY}}', $encPartyTag).Replace('{{G_ENEMY_PARTY}}', $enemyPartyTag).Replace('{{LOSS}}', [string]$lossPct)
         if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
 
         if ($idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
