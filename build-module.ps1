@@ -2640,11 +2640,13 @@ function Apply-Defeat([string]$modDir) {
     Write-ModpackLog "[defeat] 被俘关押时长：小时 - 等级/$levelDiv，下限 $hoursMin（改了 $mApplied 处）"
 }
 
-# ---------- 领主赎金（抓获领主时可索要其当前金币的一部分放走） ----------
-# 原版在野外击败敌方领主后（$g_battle_result=9）弹出「关押 / 放走」对话；
-# 这里在对话入口先扣领主 lossPct% 金币（战败损失），再在选项里加
-# 「交出当前金币 ransomPct%（最低 minGold），放你走」。
-# 选项只在领主当前金币 ≥ 下限时出现；成交后关系/荣誉不变（不加好感）。
+# ---------- 领主赎金（玩家战斗后败方领主损失金币；抓获领主时可索要赎金放走） ----------
+# 战败损失（参数 lossPct，默认 30%）挂在 game_event_battle_end：新增脚本
+# wb_ransom_battle_end，在战斗结束、原版战俘处理之前调用。玩家参与的任何战斗
+# （野外/攻城/守城）打赢后，败方领主扣当前金币的 lossPct%。
+# 原版在野外击败敌方领主后会弹出「关押 / 放走」对话（talk_context=9），这里在
+# 对话里加「交出当前金币 ransomPct%（最低 minGold），放你走」；成交后关系/荣誉不变。
+# 选项只在领主当前金币（已扣战败损失）≥ 下限时出现。
 function Apply-Ransom([string]$modDir) {
     $pd = Join-Path $PSScriptRoot 'patches\ransom'
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -2687,34 +2689,35 @@ function Apply-Ransom([string]$modDir) {
     if (($convLines -join "`n") -match 'wb_ransom') { throw '这个模块里已经有领主赎金功能了' }
     $convBody = @($convLines | Select-Object -SkipLast 1)
 
-    # (1) 击败领主入口：「dlga_start:defeat_lord_answer」动作块前先扣领主 lossPct% 金币
+    # (1) 脚本：玩家参与的战斗结束时，战败方领主损失 lossPct% 金币
     if ($lossPct -gt 0) {
-        $hit = -1
-        for ($i = 2; $i -lt $convBody.Count; $i++) {
-            if ($convBody[$i] -match '^dlga_start:defeat_lord_answer\s') { $hit = $i; break }
-        }
-        if ($hit -lt 0) { throw 'conversation.txt 里找不到 dlga_start:defeat_lord_answer' }
-        $t = @($convBody[$hit].Trim() -split '\s+' | Where-Object { $_ -ne '' })
-        if ($t.Count -lt 8) { throw 'dlga_start:defeat_lord_answer 字段不足，结构可能变了' }
-        $cc = 0
-        if (-not [int]::TryParse($t[3], [ref]$cc)) { throw 'dlga_start:defeat_lord_answer 结构异常（条件块数）' }
-        $p = 4
-        for ($k = 0; $k -lt $cc; $k++) { $na = [int]$t[$p + 1]; $p += 2 + $na }
-        $actAt = $p + 3
-        $act = 0
-        if (-not [int]::TryParse($t[$p + 2], [ref]$act)) { throw 'dlga_start:defeat_lord_answer 结构异常（动作块数）' }
-        $head = @($t[0..($actAt - 1)])
-        $tail = @($t[$actAt..($t.Count - 1)])
-        if ($tail[0] -ne '500') { throw 'dlga_start:defeat_lord_answer 的第一个动作不是 500（结构可能变了）' }
-        # $g_reg4 = 领主当前金币；扣除 lossPct%
-        $frag = @(
-            '2149', '2', '72057594037927940', '144115188075855987',
-            '2108', '2', '72057594037927940', '100',
-            '2107', '2', '72057594037927940', [string]$lossPct,
-            '1529', '2', '144115188075855987', '72057594037927940'
-        )
-        $head[-1] = [string]($act + 4)
-        $convBody[$hit] = (@($head) + $frag + @($tail)) -join ' '
+        $vPath = Join-Path $modDir 'variables.txt'
+        $varList = @([IO.File]::ReadAllText($vPath, $enc) -split "\r?\n" | Where-Object { $_.Trim() -ne '' })
+        $TAG_VAR = [int64]144115188075855872
+        $battleResultAt = [array]::IndexOf($varList, 'g_battle_result')
+        $encPartyAt = [array]::IndexOf($varList, 'g_encountered_party')
+        if ($battleResultAt -lt 0 -or $encPartyAt -lt 0) { throw '缺少 g_battle_result / g_encountered_party 变量（领主赎金需要）' }
+        $battleResultTag = [string]($TAG_VAR + $battleResultAt)
+        $encPartyTag = [string]($TAG_VAR + $encPartyAt)
+
+        $body = @((Read-TextNoBom (Join-Path $pd 'scripts.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
+        if ($body.Count -ne 2) { throw "ransom/scripts.txt 应为 2 行，实际 $($body.Count)" }
+        $body[1] = $body[1].Replace('{{G_BATTLE_RESULT}}', $battleResultTag).Replace('{{G_ENCOUNTERED_PARTY}}', $encPartyTag).Replace('{{LOSS}}', [string]$lossPct)
+        if (($body -join "`n") -match '\{\{') { throw '领主赎金脚本还有未替换的占位符' }
+
+        if ($idxOf.ContainsKey('wb_ransom_battle_end')) { throw '这个模块里已经有领主赎金脚本了' }
+        if (-not $idxOf.ContainsKey('game_event_battle_end')) { throw '缺少 game_event_battle_end 脚本（领主赎金需要）' }
+        $newTag = [string]($TAG_SCRIPT + $n)
+        while ($scLines.Count -ge 1 -and $scLines[$scLines.Count - 1] -eq '') { $scLines = $scLines[0..($scLines.Count - 2)] }
+        $scLines[1] = [string]($n + 1)
+        $scLines += $body[0]
+        $scLines += $body[1]
+        # 在 game_event_battle_end 体行开头调用（先扣钱，随后才是原版战俘处理）
+        $beRow = 2 + 2 * $idxOf['game_event_battle_end'] + 1
+        $beT = @($scLines[$beRow].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+        $beT[0] = [string]([int]$beT[0] + 1)
+        $scLines[$beRow] = ' ' + $beT[0] + ' 1 1 ' + $newTag + ' ' + (($beT[1..($beT.Count - 1)]) -join ' ')
+        [IO.File]::WriteAllText($scPath, (($scLines -join "`r`n") + "`r`n"), $enc)
     }
 
     # (2) 赎金选项：插在「放你走」选项（defeat_lord_answer_2）之前
@@ -2739,7 +2742,7 @@ function Apply-Ransom([string]$modDir) {
         $entries = (Read-TextNoBom (Join-Path $pd 'dialogs_lang.csv')).TrimEnd()
         Save-TextWithBom $dl ((@($lines) -join "`r`n").TrimEnd() + "`r`n" + $entries + "`r`n")
     }
-    Write-ModpackLog ("[ransom] 领主赎金：击败领主损失 {0}% 金币；可索要当前金币 {1}%（下限 {2}）放走，关系/荣誉不变" -f $lossPct, $ransomPct, $minGold)
+    Write-ModpackLog ("[ransom] 领主赎金：玩家战斗后败方领主损失 {0}% 金币；可索要当前金币 {1}%（下限 {2}）放走，关系/荣誉不变" -f $lossPct, $ransomPct, $minGold)
 }
 
 # ---------- 消息变量（Native 写、Lua 读） ----------
