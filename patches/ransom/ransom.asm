@@ -34,9 +34,20 @@ try_begin
       end_try
     end_try
   end_try
+  try_begin
+    gt :l1 0
+    # 规范化：party_stack_get_troop_id 可能返回裸索引，统一补上 troop tag（360287970189639680）
+    try_begin
+      lt :l1 360287970189639680
+      assign :l6 360287970189639680
+      val_add :l6 :l1
+      assign :l1 :l6
+    end_try
+  end_try
   assign {{G_RANSOM_LORD}} :l1
   try_begin
     gt :l1 0
+    str_store_troop_name s1 :l1
     assign reg0 :l1
     assign reg1 {{G_ENCOUNTERED_PARTY}}
     display_message {{DBG_ENC}}
@@ -83,6 +94,15 @@ try_begin
   end_try
   try_begin
     gt :l9 0
+    try_begin
+      lt :l9 360287970189639680
+      assign :l6 360287970189639680
+      val_add :l6 :l9
+      assign :l9 :l6
+    end_try
+  end_try
+  try_begin
+    gt :l9 0
     store_troop_gold :l5 :l9
     val_div :l5 100
     val_mul :l5 {{LOSS}}
@@ -112,6 +132,7 @@ try_begin
     assign {{G_RANSOM_OK}} 0
     assign {{G_RANSOM_AMOUNT}} 0
   end_try
+  str_store_troop_name s1 :l9
   assign reg0 :l9
   assign reg1 :l5
   assign reg2 {{G_RANSOM_OK}}

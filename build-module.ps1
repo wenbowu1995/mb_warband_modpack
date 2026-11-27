@@ -2696,9 +2696,9 @@ function Apply-Ransom([string]$modDir) {
     } else {
         $qBody = @($qRows)
         while ($qBody.Count -ge 1 -and $qBody[$qBody.Count - 1] -eq '') { $qBody = $qBody[0..($qBody.Count - 2)] }
-        $qBody += 'qstr_wb_ransom_dbg_enc enc:_{reg0}_{reg1}'
+        $qBody += 'qstr_wb_ransom_dbg_enc enc:_{s1}_{reg1}'
         $qBody += 'qstr_wb_ransom_dbg_be be:_{reg0}_{reg1}_{reg2}'
-        $qBody += 'qstr_wb_ransom_dbg_calc calc:_{reg0}_{reg1}_{reg2}_{reg3}'
+        $qBody += 'qstr_wb_ransom_dbg_calc calc:_{s1}_{reg0}_{reg1}_{reg2}_{reg3}'
         $qBody[0] = [string]($qn + 3)
         [IO.File]::WriteAllText($qPath, ((($qBody -join "`r`n")) + "`r`n"), $enc)
         $dbgTag = @{
