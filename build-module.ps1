@@ -33,6 +33,7 @@
     drill     历练（原同伴领主在玩家王国的成长按原版本体；对话可随时归队并回收领地）
     sortitems 市场整理物品（城镇市场「评估本地价格」下新增「整理物品」：背包按书/马/货/武器/甲/其他分组，组内按市场价值降序）
     cheatlang 作弊菜单汉化（营地 → CHEAT MENU! 等 43 条文本写入 languages\cns\game_menus.csv；重复选项 ID 先唯一化）
+    ransom    领主赎金（击败领主损失当前金币 30%；抓俘时可索要其当前金币 10%（最低 1500）放走，不加关系）
 
   用法（命令行）：
     build-module.ps1                          # 不指定 = 全量（features.psd1 里的所有功能）
@@ -2639,6 +2640,108 @@ function Apply-Defeat([string]$modDir) {
     Write-ModpackLog "[defeat] 被俘关押时长：小时 - 等级/$levelDiv，下限 $hoursMin（改了 $mApplied 处）"
 }
 
+# ---------- 领主赎金（抓获领主时可索要其当前金币的一部分放走） ----------
+# 原版在野外击败敌方领主后（$g_battle_result=9）弹出「关押 / 放走」对话；
+# 这里在对话入口先扣领主 lossPct% 金币（战败损失），再在选项里加
+# 「交出当前金币 ransomePct%（最低 minGold），放你走」。
+# 选项只在领主当前金币 ≥ 下限时出现；成交后关系/荣誉不变（不加好感）。
+function Apply-Ransom([string]$modDir) {
+    $pd = Join-Path $PSScriptRoot 'patches\ransom'
+    $enc = [Text.Encoding]::GetEncoding(28591)
+
+    $md = Read-TextNoBom (Join-Path $PSScriptRoot 'params.md')
+    function Get-RansomParam([string]$name, [int]$default) {
+        foreach ($line in ($md -split "\r?\n")) {
+            if ($line -match ('^\|\s*' + [regex]::Escape($name) + '\s*\|\s*(\d+)\s*\|')) { return [int]$Matches[1] }
+        }
+        return $default
+    }
+    $lossPct   = Get-RansomParam '领主战败损失（%）' 30
+    $ransomPct = Get-RansomParam '赎金比例（%）' 10
+    $minGold   = Get-RansomParam '赎金下限（第纳尔）' 1500
+    if ($lossPct -lt 0 -or $lossPct -gt 100) { throw "领主战败损失超出 0-100：$lossPct" }
+    if ($ransomPct -lt 1 -or $ransomPct -gt 100) { throw "赎金比例超出 1-100：$ransomPct" }
+    if ($minGold -lt 1) { throw "赎金下限必须 ≥1：$minGold" }
+
+    # 脚本索引（troop_add_gold 给玩家加钱、add_log_entry 记「放走领主」）
+    $scPath = Join-Path $modDir 'scripts.txt'
+    $scLines = [IO.File]::ReadAllText($scPath, $enc) -split "\r?\n"
+    $n = 0
+    if (-not [int]::TryParse($scLines[1].Trim(), [ref]$n)) { throw 'scripts.txt 第 2 行不是脚本数量' }
+    $idxOf = @{}
+    for ($i = 0; $i -lt $n; $i++) {
+        $nm = ($scLines[2 + 2 * $i].Trim() -split '\s+')[0]
+        if ($nm) { $idxOf[$nm] = $i }
+    }
+    foreach ($need in @('troop_add_gold', 'add_log_entry')) {
+        if (-not $idxOf.ContainsKey($need)) { throw "缺少脚本 $need（领主赎金需要它）" }
+    }
+    $addGoldTag = [string]($TAG_SCRIPT + $idxOf['troop_add_gold'])
+    $logTag     = [string]($TAG_SCRIPT + $idxOf['add_log_entry'])
+
+    # 对话
+    $convPath = Join-Path $modDir 'conversation.txt'
+    $convLines = [IO.File]::ReadAllText($convPath, $enc) -split "\r?\n"
+    $cCount = 0
+    if (-not [int]::TryParse($convLines[1].Trim(), [ref]$cCount)) { throw 'conversation.txt 第 2 行不是对话数量' }
+    if (($convLines -join "`n") -match 'wb_ransom') { throw '这个模块里已经有领主赎金功能了' }
+    $convBody = @($convLines | Select-Object -SkipLast 1)
+
+    # (1) 击败领主入口：「dlga_start:defeat_lord_answer」动作块前先扣领主 lossPct% 金币
+    if ($lossPct -gt 0) {
+        $hit = -1
+        for ($i = 2; $i -lt $convBody.Count; $i++) {
+            if ($convBody[$i] -match '^dlga_start:defeat_lord_answer\s') { $hit = $i; break }
+        }
+        if ($hit -lt 0) { throw 'conversation.txt 里找不到 dlga_start:defeat_lord_answer' }
+        $t = @($convBody[$hit].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+        if ($t.Count -lt 8) { throw 'dlga_start:defeat_lord_answer 字段不足，结构可能变了' }
+        $cc = 0
+        if (-not [int]::TryParse($t[3], [ref]$cc)) { throw 'dlga_start:defeat_lord_answer 结构异常（条件块数）' }
+        $p = 4
+        for ($k = 0; $k -lt $cc; $k++) { $na = [int]$t[$p + 1]; $p += 2 + $na }
+        $actAt = $p + 3
+        $act = 0
+        if (-not [int]::TryParse($t[$p + 2], [ref]$act)) { throw 'dlga_start:defeat_lord_answer 结构异常（动作块数）' }
+        $head = @($t[0..($actAt - 1)])
+        $tail = @($t[$actAt..($t.Count - 1)])
+        if ($tail[0] -ne '500') { throw 'dlga_start:defeat_lord_answer 的第一个动作不是 500（结构可能变了）' }
+        # $g_reg4 = 领主当前金币；扣除 lossPct%
+        $frag = @(
+            '2149', '2', '72057594037927940', '144115188075855987',
+            '2108', '2', '72057594037927940', '100',
+            '2107', '2', '72057594037927940', [string]$lossPct,
+            '1529', '2', '144115188075855987', '72057594037927940'
+        )
+        $head[-1] = [string]($act + 4)
+        $convBody[$hit] = (@($head) + $frag + @($tail)) -join ' '
+    }
+
+    # (2) 赎金选项：插在「放你走」选项（defeat_lord_answer_2）之前
+    $anchor = -1
+    for ($i = 2; $i -lt $convBody.Count; $i++) {
+        if ($convBody[$i] -match '^dlga_defeat_lord_answer:defeat_lord_answer_2\s') { $anchor = $i; break }
+    }
+    if ($anchor -lt 0) { throw 'conversation.txt 里找不到 dlga_defeat_lord_answer:defeat_lord_answer_2（放走选项）' }
+    $dAdd = @((Read-TextNoBom (Join-Path $pd 'dialogs_add.txt')) -split "\r?\n" | Where-Object { $_ -ne '' })
+    if ($dAdd.Count -ne 2) { throw "领主赎金对话补丁应 2 行，实际 $($dAdd.Count)" }
+    $dAdd = $dAdd -replace [regex]::Escape('{{PCT}}'), [string]$ransomPct -replace [regex]::Escape('{{MIN}}'), [string]$minGold -replace [regex]::Escape('{{ADD_GOLD}}'), $addGoldTag -replace [regex]::Escape('{{LOG}}'), $logTag
+    if (($dAdd -join "`n") -match '\{\{') { throw '领主赎金对话还有未替换的占位符' }
+    $convBody = @($convBody[0..($anchor - 1)]) + $dAdd + @($convBody[$anchor..($convBody.Count - 1)])
+    $convBody[1] = [string]($cCount + $dAdd.Count)
+    [IO.File]::WriteAllText($convPath, ((($convBody -join "`r`n")) + "`r`n"), $enc)
+
+    # 中文
+    $dl = Join-Path $modDir 'languages\cns\dialogs.csv'
+    if (Test-Path $dl) {
+        $txt = Read-TextNoBom $dl
+        $lines = @($txt -split "\r?\n" | Where-Object { $_ -notmatch 'wb_ransom' })
+        $entries = (Read-TextNoBom (Join-Path $pd 'dialogs_lang.csv')).TrimEnd()
+        Save-TextWithBom $dl ((@($lines) -join "`r`n").TrimEnd() + "`r`n" + $entries + "`r`n")
+    }
+    Write-ModpackLog ("[ransom] 领主赎金：击败领主损失 {0}% 金币；可索要当前金币 {1}%（下限 {2}）放走，关系/荣誉不变" -f $lossPct, $ransomPct, $minGold)
+}
+
 # ---------- 消息变量（Native 写、Lua 读） ----------
 function Apply-MsgVars([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -3877,6 +3980,7 @@ if ($Features -contains 'lua')        { Apply-Lua $target }
 if ($Features -contains 'learnskill') { Apply-LearnSkill $target }
 if ($Features -contains 'luck')      { Apply-LuckTrigger $target }
 if ($Features -contains 'defeat')     { Apply-Defeat $target }
+if ($Features -contains 'ransom')     { Apply-Ransom $target }
 if ($Features -contains 'drill')      { Apply-Drill $target }
 if ($Features -contains 'patrol')     { Apply-Patrol $target }
 if ($Features -contains 'sortitems')  { Apply-SortItems $target }

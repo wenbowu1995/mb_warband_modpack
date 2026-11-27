@@ -174,5 +174,11 @@
             Desc     = '战团内置作弊菜单（营地 CHEAT MENU! / 物品查找 / 天气 / 城堡攻城 / 训练场等）的 43 条文本写入中文语言包'
             Features = @('cheatlang')
         }
+        @{
+            Key      = 'ransom'
+            Title    = '领主赎金'
+            Desc     = '抓获领主时可索要其当前金币的 10%（最低 1500）放走；领主战败损失 30% 当前金币'
+            Features = @('ransom')
+        }
     )
 }

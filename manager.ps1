@@ -124,7 +124,7 @@ if (-not (Test-Path $specPath)) {
 $featureSpec = Import-PowerShellDataFile $specPath
 
 $grp = New-Object System.Windows.Forms.GroupBox
-$grp.Text = '包含的功能（每项一个勾，可多选；全选 = 之前的全量 26 项）'
+$grp.Text = '包含的功能（每项一个勾，可多选；全选 = 全部 29 项）'
 $grp.Location = New-Object System.Drawing.Point(16, 116)
 $grp.Size = New-Object System.Drawing.Size(592, 404)
 $form.Controls.Add($grp)
