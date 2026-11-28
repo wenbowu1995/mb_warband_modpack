@@ -338,7 +338,11 @@ val_mul reg0 1000
 else_try_begin
 eq :l1 7
 eq :l2 8
-item_get_value reg0 :l0
+# 弓按「速度 + 3 × 伤害」评分（不再按价值）
+item_get_speed_rating reg0 :l0
+item_get_thrust_damage :l4 :l0
+val_mul :l4 3
+val_add reg0 :l4
 val_mul reg0 1000
 else_try_begin
 eq :l1 8

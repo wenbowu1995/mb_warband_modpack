@@ -57,6 +57,7 @@ $script:OpArity = @{
     'item_get_type' = 2; 'item_get_value' = 2; 'item_get_difficulty' = 2
     'item_get_head_armor' = 2; 'item_get_body_armor' = 2; 'item_get_leg_armor' = 2
     'item_get_weapon_length' = 2; 'item_has_property' = 2
+    'item_get_speed_rating' = 2; 'item_get_thrust_damage' = 2
     # 巡逻队系统（patrol）
     'store_character_level' = 2
     'party_get_slot' = 3; 'party_set_slot' = 3; 'party_slot_eq' = 3
