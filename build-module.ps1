@@ -2808,29 +2808,49 @@ function Apply-NightBanditPriority([string]$modDir) {
 # ---------- 杂项（村庄建筑文本维护等） ----------
 function Apply-Misc([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
-    # 学校描述：每月 → 每周（配合 params.md「学校关系间隔（小时）」，默认 168 = 每周）
+    # 学校描述按 params.md「学校关系间隔（小时）」联动：
+    # 168 = 每周、720 = 每月、24/48/72/96/120/144 = 每 N 天、336 = 每两周，其余按「每 N 小时」
+    $md = Read-TextNoBom (Join-Path $PSScriptRoot 'params.md')
+    $schoolH = 168
+    foreach ($ln in ($md -split "\r?\n")) {
+        if ($ln -match '^\|\s*学校关系间隔（小时）\s*\|\s*(\d+)\s*\|') { $schoolH = [int]$Matches[1] }
+    }
+    $enPeriod = 'every_' + [string]$schoolH + '_hours'
+    $cnPeriod = '每 ' + [string]$schoolH + ' 小时'
+    switch ($schoolH) {
+        24  { $enPeriod = 'every_day';      $cnPeriod = '每 天' }
+        48  { $enPeriod = 'every_2_days';   $cnPeriod = '每 两 天' }
+        72  { $enPeriod = 'every_3_days';   $cnPeriod = '每 三 天' }
+        96  { $enPeriod = 'every_4_days';   $cnPeriod = '每 四 天' }
+        120 { $enPeriod = 'every_5_days';   $cnPeriod = '每 五 天' }
+        144 { $enPeriod = 'every_6_days';   $cnPeriod = '每 六 天' }
+        168 { $enPeriod = 'every_week';     $cnPeriod = '每 周' }
+        336 { $enPeriod = 'every_2_weeks';  $cnPeriod = '每 两 周' }
+        720 { $enPeriod = 'every_month';    $cnPeriod = '每 月' }
+    }
+    # 英文 quick_string
     $qsPath = Join-Path $modDir 'quick_strings.txt'
     $qLines = [IO.File]::ReadAllText($qsPath, $enc) -split "\r?\n"
     $found = $false
     for ($i = 1; $i -lt $qLines.Count; $i++) {
         if ($qLines[$i] -match '^qstr_A_shool_increases_th ') {
-            $qLines[$i] = $qLines[$i].Replace('every_month', 'every_week')
+            $qLines[$i] = $qLines[$i].Replace('every_month', $enPeriod)
             $found = $true
             break
         }
     }
     if (-not $found) { throw 'quick_strings.txt 里找不到学校描述 qstr_A_shool_increases_th（版本可能变了）' }
     [IO.File]::WriteAllText($qsPath, (($qLines -join "`r`n") + "`r`n"), $enc)
-    # 中文词条：每月 → 每周
+    # 中文词条：把「每 月 提 升」换成参数对应周期
     $qcPath = Join-Path $modDir 'languages\cns\quick_strings.csv'
     if (Test-Path $qcPath) {
         $qc = Read-TextNoBom $qcPath
-        if ($qc -match 'qstr_A_shool_increases_th\|' -and $qc -notmatch '每 周') {
-            $qc = $qc.Replace('每 月 提 升', '每 周 提 升')
+        if ($qc -match 'qstr_A_shool_increases_th\|') {
+            $qc = $qc.Replace('每 月 提 升', ($cnPeriod + ' 提 升'))
             Save-TextWithBom $qcPath ($qc.TrimEnd() + "`r`n")
         }
     }
-    Write-ModpackLog '[misc] 学校建筑说明改为「每周 +1」（配合学校关系间隔参数）'
+    Write-ModpackLog ("[misc] 学校建筑说明 = 「{0}」，按 params.md 学校关系间隔 {1} 小时联动" -f $cnPeriod.Replace(' ', ''), $schoolH)
 }
 
 # ---------- 消息变量（Native 写、Lua 读） ----------
