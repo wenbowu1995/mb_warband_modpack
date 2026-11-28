@@ -438,26 +438,20 @@ call_script {{S0}} :l13
 assign :l14 reg0
 else_try_begin
 eq :l1 7
-# 弓前缀按属性：优质 +1 伤 / 平衡 +3 伤+3 速 / 回火 +4 伤 / 极品 +5 伤+1 速 / 重 +2 伤-2 速 / 坚硬 +3 伤-3 速
+# 弓前缀按属性（Native 弓只有 4 种前缀）：裂开 -5 伤 / 弯曲 -3 伤-3 速 / 坚硬 +3 伤-3 速 / 极品 +5 伤+1 速
 assign :l14 0
 try_begin
-eq :l13 10
-assign :l14 3000
+eq :l13 1
+assign :l14 -15000
 else_try_begin
-eq :l13 13
-assign :l14 12000
-else_try_begin
-eq :l13 14
-assign :l14 12000
-else_try_begin
-eq :l13 17
-assign :l14 16000
-else_try_begin
-eq :l13 18
-assign :l14 4000
+eq :l13 3
+assign :l14 -12000
 else_try_begin
 eq :l13 19
 assign :l14 6000
+else_try_begin
+eq :l13 17
+assign :l14 16000
 end_try
 else_try_begin
 call_script {{S1}} :l13
