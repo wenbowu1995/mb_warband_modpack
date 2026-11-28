@@ -499,6 +499,10 @@ le :l2 3
 call_script {{S0}} :l9
 assign :l11 reg0
 else_try_begin
+eq :l2 7
+# 弓的前缀属性已在 wb_item_score 里算过，这里不再加价值权重
+assign :l11 0
+else_try_begin
 call_script {{S1}} :l9
 assign :l11 reg0
 end_try
