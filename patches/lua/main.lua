@@ -105,7 +105,7 @@ local function flush_message()
             show("近来灾厄连连（运气 " .. luck .. "），福祸难料。")
         end
     elseif t == 12 then
-        show("强盗设伏于道，你抢在合围之前脱身了。")
+        show("强盗设伏于道，你抢在合围之前脱身了。", 0xFF0000)
     elseif t == 13 then
                 show(lord .. " 从专门指导中获得 " .. game.gvar.g_wb_msg_arg1 .. " 经验。")
     elseif t == 15 then
