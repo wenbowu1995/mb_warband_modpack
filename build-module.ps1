@@ -4008,6 +4008,8 @@ if ($Features -contains 'nofiefgood') { Apply-NoFiefGood $target }
 if ($Features -contains 'lua')        { Apply-Lua $target }
 if ($Features -contains 'learnskill') { Apply-LearnSkill $target }
 if ($Features -contains 'luck')      { Apply-LuckTrigger $target }
+# 夜行强盗任务优先（并入运气：城镇有夜行强盗标记时，市长任务直接给「处理夜行强盗」）
+if ($Features -contains 'luck')      { Apply-NightBanditPriority $target }
 if ($Features -contains 'defeat')     { Apply-Defeat $target }
 if ($Features -contains 'drill')      { Apply-Drill $target }
 if ($Features -contains 'patrol')     { Apply-Patrol $target }
@@ -4019,7 +4021,6 @@ if ($Features -contains 'claim') { Finalize-ClaimVars $target }
 
 # 领主赎金：必须放在变量重排之后（否则自己追加的变量会被 Finalize-ClaimVars 挪位）
 if ($Features -contains 'ransom') { Apply-Ransom $target }
-if ($Features -contains 'nightbanditprio') { Apply-NightBanditPriority $target }
 
 # 3) 应用游戏参数（params.md 里填的）
 Apply-Params $target
