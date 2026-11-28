@@ -183,7 +183,7 @@
         @{
             Key      = 'nightbanditprio'
             Title    = '夜行强盗任务优先'
-            Desc     = '城镇有夜行强盗时，市长任务优先给「处理夜行强盗」（原版只给等级<15 且随机抽到）'
+            Desc     = '城镇有夜行强盗时，市长任务优先给「处理夜行强盗」（不再限制玩家等级）'
             Features = @('nightbanditprio')
         }
     )
