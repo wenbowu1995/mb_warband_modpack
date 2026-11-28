@@ -2305,7 +2305,14 @@ function Apply-Luck([string]$modDir) {
     $cfPrefix = '2147483679 2 144115188075856244 0 561 3 144115188075856213 155 1 31 2 144115188075856236 0 31 2 144115188075856215 0'
     if (-not $cfBody.StartsWith('68 ' + $cfPrefix + ' 4 0 ')) { throw 'cf_enter_center_location_bandit_check 体行开头与预期不符（可能已被其它补丁改过），拒绝插入' }
     $cfRest = $cfBody.Substring(3 + $cfPrefix.Length + 1)
-    $cfInsert = "2133 2 1224979098644774950 0 2136 3 1224979098644774951 0 100 2122 3 1224979098644774952 $luckTag $nightPct 2108 2 1224979098644774952 200 4 0 2147483678 2 1224979098644774951 1224979098644774952 2133 2 1224979098644774950 1 2133 2 $msgTag 12 3 0 31 2 1224979098644774950 0"
+    # 提示改用原生 display_message（qstr_You_are_attacked_by_，红色）：菜单打开时立即显示，
+    # 不受 Lua 只在世界触发时刷新（OnWorldTrigger）导致的延迟影响。
+    $qRows = [IO.File]::ReadAllText((Join-Path $modDir 'quick_strings.txt'), $enc) -split "\r?\n"
+    $qIdx = -1
+    for ($qi = 2; $qi -lt $qRows.Count; $qi++) { if ($qRows[$qi] -match '^qstr_You_are_attacked_by_ ') { $qIdx = $qi - 2; break } }
+    if ($qIdx -lt 0) { throw 'quick_strings.txt 里找不到 qstr_You_are_attacked_by_（版本可能变了）' }
+    $qTag = [string]([int64]1585267068834414592 + [int64]$qIdx)
+    $cfInsert = "2133 2 1224979098644774950 0 2136 3 1224979098644774951 0 100 2122 3 1224979098644774952 $luckTag $nightPct 2108 2 1224979098644774952 200 4 0 2147483678 2 1224979098644774951 1224979098644774952 2133 2 1224979098644774950 1 1106 2 $qTag 16711680 3 0 31 2 1224979098644774950 0"
     $scLines[3 + 2 * $cfIdx] = "78 $cfPrefix $cfInsert $cfRest"
 
     # 3b) 追加供奉脚本（评估 + 供奉 + 到时结算）
