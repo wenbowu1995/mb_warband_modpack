@@ -282,6 +282,7 @@ end_try
 # reg0 = 该物品在 kind 类别下的基础分（护甲=防御x1000，武器/马=价值x1000）；不适合该 kind 返回 0
 store_script_param :l0 1
 store_script_param :l1 2
+store_script_param :l5 3
 assign reg0 0
 item_get_type :l2 :l0
 try_begin
@@ -338,9 +339,25 @@ val_mul reg0 1000
 else_try_begin
 eq :l1 7
 eq :l2 8
-# 弓按「速度 + 3 × 伤害」评分（不再按价值）
+# 弓：基础属性 + 前缀属性，再按（速度 + 3×伤害）算分（Native 弓只有 4 种前缀）
 item_get_speed_rating reg0 :l0
 item_get_thrust_damage :l4 :l0
+try_begin
+eq :l5 1
+val_sub :l4 5
+else_try_begin
+eq :l5 3
+val_sub :l4 3
+val_sub reg0 3
+else_try_begin
+eq :l5 19
+val_add :l4 3
+val_sub reg0 3
+else_try_begin
+eq :l5 17
+val_add :l4 5
+val_add reg0 1
+end_try
 val_mul :l4 3
 val_add reg0 :l4
 val_mul reg0 1000
@@ -413,10 +430,10 @@ troop_get_inventory_capacity :l8 trp_player
 try_for_range :l9 10 :l8
 troop_get_inventory_slot :l10 trp_player :l9
 ge :l10 1
-call_script {{S3}} :l10 :l1
+troop_get_inventory_slot_modifier :l13 trp_player :l9
+call_script {{S3}} :l10 :l1 :l13
 assign :l11 reg0
 ge :l11 1000
-troop_get_inventory_slot_modifier :l13 trp_player :l9
 # 有效要求 = 基础难度 + 前缀要求增量（极品 +4 / 坚硬 +2 / 重 +1 等）
 call_script {{S2}} :l13 :l2
 assign :l16 reg0
@@ -438,21 +455,8 @@ call_script {{S0}} :l13
 assign :l14 reg0
 else_try_begin
 eq :l1 7
-# 弓前缀按属性（Native 弓只有 4 种前缀）：裂开 -5 伤 / 弯曲 -3 伤-3 速 / 坚硬 +3 伤-3 速 / 极品 +5 伤+1 速
+# 弓的分数已在 wb_item_score 里按「基础属性 + 前缀属性」算好，这里不再加
 assign :l14 0
-try_begin
-eq :l13 1
-assign :l14 -15000
-else_try_begin
-eq :l13 3
-assign :l14 -12000
-else_try_begin
-eq :l13 19
-assign :l14 6000
-else_try_begin
-eq :l13 17
-assign :l14 16000
-end_try
 else_try_begin
 call_script {{S1}} :l13
 assign :l14 reg0
@@ -488,7 +492,7 @@ troop_get_inventory_slot_modifier :l9 :l0 :l1
 assign :l10 -1
 try_begin
 ge :l8 1
-call_script {{S3}} :l8 :l2
+call_script {{S3}} :l8 :l2 :l9
 assign :l10 reg0
 try_begin
 le :l2 3
@@ -521,10 +525,10 @@ assign reg0 0
 troop_get_inventory_slot :l3 :l0 :l1
 try_begin
 ge :l3 1
-call_script {{S3}} :l3 :l2
+troop_get_inventory_slot_modifier :l5 :l0 :l1
+call_script {{S3}} :l3 :l2 :l5
 assign :l4 reg0
 eq :l4 0
-troop_get_inventory_slot_modifier :l5 :l0 :l1
 troop_set_inventory_slot :l0 :l1 -1
 troop_add_item trp_player :l3 :l5
 assign reg0 1
