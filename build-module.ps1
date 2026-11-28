@@ -2805,6 +2805,34 @@ function Apply-NightBanditPriority([string]$modDir) {
     Write-ModpackLog '[nightbanditprio] 市长任务优先给「处理夜行强盗」（当前城有 155 标记、任务未激活，不限等级）'
 }
 
+# ---------- 杂项（村庄建筑文本维护等） ----------
+function Apply-Misc([string]$modDir) {
+    $enc = [Text.Encoding]::GetEncoding(28591)
+    # 学校描述：每月 → 每周（配合 params.md「学校关系间隔（小时）」，默认 168 = 每周）
+    $qsPath = Join-Path $modDir 'quick_strings.txt'
+    $qLines = [IO.File]::ReadAllText($qsPath, $enc) -split "\r?\n"
+    $found = $false
+    for ($i = 1; $i -lt $qLines.Count; $i++) {
+        if ($qLines[$i] -match '^qstr_A_shool_increases_th ') {
+            $qLines[$i] = $qLines[$i].Replace('every_month', 'every_week')
+            $found = $true
+            break
+        }
+    }
+    if (-not $found) { throw 'quick_strings.txt 里找不到学校描述 qstr_A_shool_increases_th（版本可能变了）' }
+    [IO.File]::WriteAllText($qsPath, (($qLines -join "`r`n") + "`r`n"), $enc)
+    # 中文词条：每月 → 每周
+    $qcPath = Join-Path $modDir 'languages\cns\quick_strings.csv'
+    if (Test-Path $qcPath) {
+        $qc = Read-TextNoBom $qcPath
+        if ($qc -match 'qstr_A_shool_increases_th\|' -and $qc -notmatch '每 周') {
+            $qc = $qc.Replace('每 月 提 升', '每 周 提 升')
+            Save-TextWithBom $qcPath ($qc.TrimEnd() + "`r`n")
+        }
+    }
+    Write-ModpackLog '[misc] 学校建筑说明改为「每周 +1」（配合学校关系间隔参数）'
+}
+
 # ---------- 消息变量（Native 写、Lua 读） ----------
 function Apply-MsgVars([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -4039,6 +4067,7 @@ if ($Features -contains 'drill')      { Apply-Drill $target }
 if ($Features -contains 'patrol')     { Apply-Patrol $target }
 if ($Features -contains 'sortitems')  { Apply-SortItems $target }
 if ($Features -contains 'cheatlang')  { Apply-CheatLang $target }
+if ($Features -contains 'misc')       { Apply-Misc $target }
 
 # 变量重排：宣称队列变量移到变量表末尾（其余变量索引与旧存档保持一致）
 if ($Features -contains 'claim') { Finalize-ClaimVars $target }
