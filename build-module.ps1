@@ -1544,6 +1544,7 @@ function Apply-Params([string]$modDir) {
         $expect = 0
         if (-not [int]::TryParse($cols[4], [ref]$expect)) { continue }
         if ($pval -eq '' -or $pval -eq '-') { continue }
+        if ($script -eq 'simple_triggers') { continue }   # 触发器参数在下面单独处理
         $nameIdx = -1
         for ($i = 0; $i -lt $scLines.Count; $i++) {
             if ($scLines[$i] -like "$script *") { $nameIdx = $i; break }
@@ -1561,6 +1562,30 @@ function Apply-Params([string]$modDir) {
         $applied++
         Write-ModpackLog "[params] $pname = $pval（$script）"
     }
+    # 学校关系间隔：原版 simple_triggers 里 720 小时（30 天）一条触发器——
+    # 玩家拥有的村庄（中心 slot 7 = 玩家）建了学校（slot 133 = 1）就 +1 关系（slot 26，封顶 100）。
+    # 参数里填 168 即改成每周一次；填 720 保持原版。
+    $schoolH = 0
+    foreach ($ln in ($md -split "\r?\n")) {
+        if ($ln -match '^\|\s*学校关系间隔（小时）\s*\|\s*(\d+)\s*\|') { $schoolH = [int]$Matches[1] }
+    }
+    if ($schoolH -gt 0 -and $schoolH -ne 720) {
+        $trPath = Join-Path $modDir 'simple_triggers.txt'
+        $trLines = [IO.File]::ReadAllText($trPath, $enc) -split "\r?\n"
+        $hit = -1
+        for ($i = 0; $i -lt $trLines.Count; $i++) {
+            if ($trLines[$i] -match '541 3 \d{15,19} 133 1 ') { $hit = $i; break }
+        }
+        if ($hit -lt 0) { throw 'simple_triggers 里找不到学校关系触发器（版本可能变了）' }
+        $t = @($trLines[$hit].Trim() -split '\s+' | Where-Object { $_ -ne '' })
+        if (-not ($t[0] -match '^(?:720|720\.0+)$')) { throw "学校关系触发器间隔不是 720 小时（实际 $($t[0])），拒绝改" }
+        $t[0] = [string]$schoolH + '.000000'
+        $trLines[$hit] = ' ' + ($t -join ' ')
+        [IO.File]::WriteAllText($trPath, ($trLines -join "`r`n"), $enc)
+        Write-ModpackLog "[params] 学校关系间隔 = $schoolH 小时（原版 720 = 30 天）"
+        $applied++
+    }
+
     if ($applied -gt 0) {
         [IO.File]::WriteAllText($scPath, ($scLines -join "`r`n"), $enc)
         Write-ModpackLog "[params] 共应用 $applied 个参数"
