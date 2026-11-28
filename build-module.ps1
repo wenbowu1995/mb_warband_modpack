@@ -2750,6 +2750,36 @@ function Apply-Ransom([string]$modDir) {
     Write-ModpackLog ("[ransom] 领主赎金：领主重建队伍时扣 {0}% 财富；求饶/放人对话可索要 {1}%（下限 {2}）" -f $lossPct, $ransomPct, $minGold)
 }
 
+# ---------- 夜行强盗任务优先（改原生 get_quest 的任务选择） ----------
+# 原生 get_quest 在随机任务池里抽一个任务；抽到 504403158265495587（处理夜行强盗）后还要满足
+# 玩家等级 0..15、当前中心 slot 155（夜行强盗标记）≥1。这里在随机选择前加一段：
+# 若当前中心有夜行强盗标记、玩家等级 <15、任务未激活，就直接选中该任务，不再随机。
+function Apply-NightBanditPriority([string]$modDir) {
+    $enc = [Text.Encoding]::GetEncoding(28591)
+    $scPath = Join-Path $modDir 'scripts.txt'
+    $scLines = [IO.File]::ReadAllText($scPath, $enc) -split "\r?\n"
+    $n = 0
+    if (-not [int]::TryParse($scLines[1].Trim(), [ref]$n)) { throw 'scripts.txt 第 2 行不是脚本数量' }
+    $gi = -1
+    for ($i = 0; $i -lt $n; $i++) {
+        if ((($scLines[2 + 2 * $i].Trim() -split '\s+')[0]) -eq 'get_quest') { $gi = $i; break }
+    }
+    if ($gi -lt 0) { throw 'scripts.txt 里找不到 get_quest 脚本' }
+    $body = $scLines[3 + 2 * $gi]
+    if ($body -match '2147483848 1 504403158265495587') { throw '这个模块里已经有夜行强盗任务优先补丁了' }
+    $old = '4 0 31 2 1224979098644774922 -1'
+    if ([regex]::Matches($body, [regex]::Escape($old)).Count -ne 1) { throw 'get_quest 里没找到唯一的任务选择插入点（版本可能变了）' }
+    # 优先块：:l10 未选任务 + 当前中心在中心范围 + 玩家等级 0..15 + 中心 slot 155≥1
+    #         + 任务未激活/未做过 → 目标中心=当前中心、时限 4、奖励 15、任务=处理夜行强盗
+    $ins = '4 0 31 2 1224979098644774922 -1 33 3 1224979098644774913 0 15 33 3 1224979098644774917 648518346341351445 648518346341351625 561 3 1224979098644774917 155 1 2147483848 1 504403158265495587 2147484214 3 504403158265495587 25 1 2133 2 1224979098644774924 1224979098644774917 2133 2 1224979098644774938 4 2133 2 1224979098644774939 15 2133 2 1224979098644774922 504403158265495587 3 0 '
+    $newBody = $body.Replace($old, $ins + $old)
+    $bt = @($newBody.Trim() -split '\s+' | Where-Object { $_ -ne '' })
+    $bt[0] = [string]([int]$bt[0] + 12)
+    $scLines[3 + 2 * $gi] = ' ' + ($bt -join ' ')
+    [IO.File]::WriteAllText($scPath, ($scLines -join "`r`n"), $enc)
+    Write-ModpackLog '[nightbanditprio] 市长任务优先给「处理夜行强盗」（当前城有 155 标记、等级<15、任务未激活）'
+}
+
 # ---------- 消息变量（Native 写、Lua 读） ----------
 function Apply-MsgVars([string]$modDir) {
     $enc = [Text.Encoding]::GetEncoding(28591)
@@ -3988,6 +4018,7 @@ if ($Features -contains 'claim') { Finalize-ClaimVars $target }
 
 # 领主赎金：必须放在变量重排之后（否则自己追加的变量会被 Finalize-ClaimVars 挪位）
 if ($Features -contains 'ransom') { Apply-Ransom $target }
+if ($Features -contains 'nightbanditprio') { Apply-NightBanditPriority $target }
 
 # 3) 应用游戏参数（params.md 里填的）
 Apply-Params $target

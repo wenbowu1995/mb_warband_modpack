@@ -180,5 +180,11 @@
             Desc     = '领主重建队伍时损失 30% 财富；抓获/放走领主时可索要其财富的 10%（最低 1500）'
             Features = @('ransom')
         }
+        @{
+            Key      = 'nightbanditprio'
+            Title    = '夜行强盗任务优先'
+            Desc     = '城镇有夜行强盗时，市长任务优先给「处理夜行强盗」（原版只给等级<15 且随机抽到）'
+            Features = @('nightbanditprio')
+        }
     )
 }
